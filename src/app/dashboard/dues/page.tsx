@@ -62,42 +62,68 @@ export default function DuesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Membership Dues Matrix</h1>
-        <p className="text-muted-foreground">Monthly payment status tracking grid per member</p>
-      </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold">Membership Dues Matrix</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Monthly payment status tracking grid per member</p>
+        </div>
 
-      <div className="flex gap-4">
-        <Select value={String(month)} onValueChange={(v) => setMonth(parseInt(v))}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {Array.from({ length: 12 }, (_, i) => (
-              <SelectItem key={i + 1} value={String(i + 1)}>{getMonthName(i + 1)}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={String(year)} onValueChange={(v) => setYear(parseInt(v))}>
-          <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={String(month)} onValueChange={(v) => setMonth(parseInt(v))}>
+            <SelectTrigger className="w-36 sm:w-44 text-xs sm:text-sm h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 12 }, (_, i) => (
+                <SelectItem key={i + 1} value={String(i + 1)}>{getMonthName(i + 1)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={String(year)} onValueChange={(v) => setYear(parseInt(v))}>
+            <SelectTrigger className="w-24 sm:w-28 text-xs sm:text-sm h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {board && (
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Total Expected</CardTitle></CardHeader>
-            <CardContent><p className="text-2xl font-bold">{formatCurrency(board.summary.totalExpected)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Total Paid</CardTitle></CardHeader>
-            <CardContent><p className="text-2xl font-bold text-green-700">{formatCurrency(board.summary.totalPaid)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Paid Members</CardTitle></CardHeader>
-            <CardContent><p className="text-2xl font-bold text-green-700">{board.summary.paidCount}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Pending Dues</CardTitle></CardHeader>
-            <CardContent><p className="text-2xl font-bold text-yellow-700">{board.summary.pendingCount}</p></CardContent></Card>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <Card className="shadow-sm">
+            <CardHeader className="p-3.5 sm:p-6 pb-1 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">Total Expected</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3.5 sm:p-6 pt-0 sm:pt-0">
+              <p className="text-xl sm:text-2xl font-bold">{formatCurrency(board.summary.totalExpected)}</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardHeader className="p-3.5 sm:p-6 pb-1 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">Total Paid</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3.5 sm:p-6 pt-0 sm:pt-0">
+              <p className="text-xl sm:text-2xl font-bold text-green-700">{formatCurrency(board.summary.totalPaid)}</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardHeader className="p-3.5 sm:p-6 pb-1 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">Paid Members</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3.5 sm:p-6 pt-0 sm:pt-0">
+              <p className="text-xl sm:text-2xl font-bold text-green-700">{board.summary.paidCount}</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardHeader className="p-3.5 sm:p-6 pb-1 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">Pending Dues</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3.5 sm:p-6 pt-0 sm:pt-0">
+              <p className="text-xl sm:text-2xl font-bold text-yellow-700">{board.summary.pendingCount}</p>
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      <Card>
+      <Card className="shadow-sm">
         <CardContent className="p-0">
           <Table>
             <TableHeader>

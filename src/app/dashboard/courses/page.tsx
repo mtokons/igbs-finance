@@ -106,56 +106,73 @@ export default function CoursesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Madrasha Courses</h1>
-          <p className="text-muted-foreground">Manage educational courses, student enrollments, and course fee collection</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Madrasha Courses</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Manage educational courses, student enrollments, and course fee collection</p>
         </div>
-        <Button onClick={() => setShowAddForm(!showAddForm)}>
+        <Button onClick={() => setShowAddForm(!showAddForm)} className="w-full sm:w-auto h-9 sm:h-10 text-xs sm:text-sm">
           <Plus className="mr-2 h-4 w-4" /> Create New Course
         </Button>
       </div>
 
       {showAddForm && (
-        <Card>
-          <CardHeader><CardTitle>Create Madrasha Course</CardTitle></CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreateCourse} className="grid gap-4 md:grid-cols-2">
-              <div><Label>Course Title</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
-              <div><Label>Course Fee (€)</Label><Input type="number" step="0.01" value={form.fee} onChange={(e) => setForm({ ...form, fee: e.target.value })} required /></div>
-              <div><Label>Start Date</Label><Input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} /></div>
-              <div><Label>Description</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
-              <div className="md:col-span-2"><Button type="submit">Save Course</Button></div>
+        <Card className="shadow-sm">
+          <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
+            <CardTitle className="text-base sm:text-lg">Create Madrasha Course</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+            <form onSubmit={handleCreateCourse} className="grid gap-3 sm:gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Course Title</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Course Fee (€)</Label>
+                <Input type="number" step="0.01" value={form.fee} onChange={(e) => setForm({ ...form, fee: e.target.value })} required />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Start Date</Label>
+                <Input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Description</Label>
+                <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              </div>
+              <div className="md:col-span-2 pt-1">
+                <Button type="submit" className="w-full sm:w-auto">Save Course</Button>
+              </div>
             </form>
           </CardContent>
         </Card>
       )}
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {courses.map((course) => (
           <Card key={course.id} className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <GraduationCap className="h-5 w-5 text-primary" /> {course.name}
+            <CardHeader className="p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-2">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                  <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+                  <span className="truncate">{course.name}</span>
                 </CardTitle>
-                <Badge variant={course.isActive ? "success" : "secondary"}>
+                <Badge variant={course.isActive ? "success" : "secondary"} className="shrink-0 text-[10px]">
                   {course.isActive ? "Active" : "Inactive"}
                 </Badge>
               </div>
-              <CardDescription>{course.description || "No description provided"}</CardDescription>
+              <CardDescription className="text-xs line-clamp-2">{course.description || "No description provided"}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between text-sm">
-                <span>Fee:</span>
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-3">
+              <div className="flex justify-between text-xs sm:text-sm">
+                <span className="text-muted-foreground">Fee:</span>
                 <span className="font-semibold">{formatCurrency(Number(course.fee))}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span>Enrolled Students:</span>
+              <div className="flex justify-between text-xs sm:text-sm">
+                <span className="text-muted-foreground">Enrolled Students:</span>
                 <span className="font-semibold">{course._count?.enrollments || 0} students</span>
               </div>
-              <Button variant="outline" className="w-full" onClick={() => viewCourseDetail(course.id)}>
-                <Users className="mr-2 h-4 w-4" /> Enrollments & Fees
+              <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => viewCourseDetail(course.id)}>
+                <Users className="mr-1.5 h-3.5 w-3.5" /> Enrollments &amp; Fees
               </Button>
             </CardContent>
           </Card>
@@ -163,21 +180,22 @@ export default function CoursesPage() {
       </div>
 
       {selectedCourse && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-2xl shadow-xl border">
-            <CardHeader>
-              <CardTitle className="flex justify-between items-center">
-                <span>{selectedCourse.name} — Student List</span>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedCourse(null)}>✕</Button>
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 z-50">
+          <Card className="w-full max-w-2xl shadow-xl border max-h-[92vh] flex flex-col">
+            <CardHeader className="p-4 sm:p-6 pb-2 shrink-0 border-b">
+              <CardTitle className="flex justify-between items-center text-base sm:text-lg">
+                <span className="truncate">{selectedCourse.name} — Students</span>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setSelectedCourse(null)}>✕</Button>
               </CardTitle>
-              <CardDescription>Course Fee: {formatCurrency(Number(selectedCourse.fee))}</CardDescription>
+              <CardDescription className="text-xs">Course Fee: {formatCurrency(Number(selectedCourse.fee))}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-lg border p-4 space-y-3 bg-muted/30">
+            <CardContent className="p-3 sm:p-6 space-y-4 overflow-y-auto">
+              <div className="rounded-lg border p-3 sm:p-4 space-y-3 bg-muted/30">
                 <div className="flex gap-2">
                   <Button
                     type="button"
                     size="sm"
+                    className="text-xs h-8"
                     variant={enrollMode === "member" ? "default" : "outline"}
                     onClick={() => setEnrollMode("member")}
                   >
@@ -186,6 +204,7 @@ export default function CoursesPage() {
                   <Button
                     type="button"
                     size="sm"
+                    className="text-xs h-8"
                     variant={enrollMode === "new" ? "default" : "outline"}
                     onClick={() => setEnrollMode("new")}
                   >
@@ -195,7 +214,7 @@ export default function CoursesPage() {
 
                 {enrollMode === "member" ? (
                   <div className="space-y-1">
-                    <Label>Select Member</Label>
+                    <Label className="text-xs">Select Member</Label>
                     <Select value={enrollMemberId} onValueChange={setEnrollMemberId}>
                       <SelectTrigger><SelectValue placeholder="Select member..." /></SelectTrigger>
                       <SelectContent>
@@ -206,50 +225,56 @@ export default function CoursesPage() {
                     </Select>
                   </div>
                 ) : (
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-2 sm:gap-3 sm:grid-cols-3">
                     <div className="space-y-1">
-                      <Label>Student Name *</Label>
+                      <Label className="text-xs">Student Name *</Label>
                       <Input
                         value={newStudent.name}
                         onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
                         placeholder="Full name"
+                        className="text-xs sm:text-sm"
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label>Email</Label>
+                      <Label className="text-xs">Email</Label>
                       <Input
                         type="email"
                         value={newStudent.email}
                         onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
                         placeholder="student@example.com"
+                        className="text-xs sm:text-sm"
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label>Phone</Label>
+                      <Label className="text-xs">Phone</Label>
                       <Input
                         value={newStudent.phone}
                         onChange={(e) => setNewStudent({ ...newStudent, phone: e.target.value })}
                         placeholder="Optional"
+                        className="text-xs sm:text-sm"
                       />
                     </div>
                   </div>
                 )}
 
                 <div className="space-y-1">
-                  <Label>CC (optional, comma-separated)</Label>
+                  <Label className="text-xs">CC (optional, comma-separated)</Label>
                   <Input
                     value={ccEmails}
                     onChange={(e) => setCcEmails(e.target.value)}
                     placeholder="parent@example.com, office@igbs.de"
+                    className="text-xs sm:text-sm"
                   />
                 </div>
 
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs text-muted-foreground">
-                    A confirmation email including IGBS bank payment details will be sent to the student.
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-1">
+                  <p className="text-[11px] text-muted-foreground">
+                    A confirmation email with Student ID &amp; FYRST bank details will be sent.
                   </p>
                   <Button
                     onClick={handleEnroll}
+                    size="sm"
+                    className="w-full sm:w-auto text-xs"
                     disabled={enrolling || (enrollMode === "member" ? !enrollMemberId : !newStudent.name.trim())}
                   >
                     {enrolling ? "Enrolling..." : "Enroll & Notify"}
@@ -257,7 +282,7 @@ export default function CoursesPage() {
                 </div>
 
                 {enrollMsg && (
-                  <div className="text-sm p-2 rounded-md bg-primary/10 text-primary border border-primary/20">
+                  <div className="text-xs p-2.5 rounded-md bg-primary/10 text-primary border border-primary/20">
                     {enrollMsg}
                   </div>
                 )}

@@ -89,25 +89,25 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <div className="w-full max-w-md space-y-4">
+    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-3 sm:p-4 py-6">
+      <div className="w-full max-w-md space-y-3 sm:space-y-4">
         {/* Quick link for students to check course fee status without login */}
-        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            <GraduationCap className="h-4 w-4 text-primary" />
-            <span>Are you a student checking fee status?</span>
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-2.5 sm:p-3 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <GraduationCap className="h-4 w-4 text-primary shrink-0" />
+            <span className="truncate">Student checking fee status?</span>
           </div>
-          <Link href="/status" className="font-semibold text-primary hover:underline flex items-center gap-1">
+          <Link href="/status" className="font-semibold text-primary hover:underline flex items-center gap-1 shrink-0">
             Check Status <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
 
         <Card className="shadow-lg border">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-primary">IGBS Finance</CardTitle>
-            <CardDescription>Islamische Gemeinschaft für Bildung und Soziales e.V., Hamburg</CardDescription>
+          <CardHeader className="text-center p-4 sm:p-6 pb-2 sm:pb-3">
+            <CardTitle className="text-xl sm:text-2xl font-bold text-primary">IGBS Finance</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">Islamische Gemeinschaft für Bildung und Soziales e.V., Hamburg</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 sm:p-6 pt-2">
             {error && (
               <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm rounded-md">
                 {error}

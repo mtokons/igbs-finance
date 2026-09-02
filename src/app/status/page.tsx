@@ -40,36 +40,37 @@ export default function StudentStatusPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <div className="w-full max-w-lg space-y-4">
+    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-3 sm:p-4 py-6">
+      <div className="w-full max-w-lg space-y-3 sm:space-y-4">
         <div className="flex items-center justify-between px-1">
-          <Link href="/login" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
+          <Link href="/login" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 font-medium">
             <ArrowLeft className="h-3 w-3" /> Back to Staff Login
           </Link>
-          <span className="text-xs text-muted-foreground font-mono">IGBS Portal</span>
+          <span className="text-[11px] text-muted-foreground font-mono">IGBS Portal</span>
         </div>
 
         <Card className="shadow-lg border">
-          <CardHeader className="text-center pb-4">
-            <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
-              <GraduationCap className="h-6 w-6 text-primary" />
+          <CardHeader className="text-center p-4 sm:p-6 pb-3 sm:pb-4">
+            <div className="mx-auto w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/10 flex items-center justify-center mb-1.5 sm:mb-2">
+              <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             </div>
-            <CardTitle className="text-2xl font-bold">Student Course & Fee Status</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl sm:text-2xl font-bold">Student Course &amp; Fee Status</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
               Check enrollment, fee payment status, and bank details using your Student ID or email
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-6">
+          <CardContent className="p-4 sm:p-6 pt-0 space-y-4 sm:space-y-6">
             <form onSubmit={handleSearch} className="flex gap-2">
               <Input
-                placeholder="Enter Student ID (e.g. STU-0001) or Email..."
+                placeholder="Student ID (e.g. STU-0001) or Email..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 required
+                className="text-xs sm:text-sm h-10"
               />
-              <Button type="submit" disabled={loading}>
-                <Search className="h-4 w-4 mr-1" /> {loading ? "Checking..." : "Check"}
+              <Button type="submit" disabled={loading} className="h-10 text-xs sm:text-sm shrink-0">
+                <Search className="h-3.5 w-3.5 mr-1" /> {loading ? "..." : "Check"}
               </Button>
             </form>
 

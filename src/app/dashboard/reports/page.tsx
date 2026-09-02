@@ -29,15 +29,15 @@ export default function ReportsPage() {
   }, [year]);
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 sm:space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Financial Reports & Exports</h1>
-          <p className="text-muted-foreground">Monthly and annual summaries, category breakdowns, and board-ready reports</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Financial Reports &amp; Exports</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Monthly and annual summaries, category breakdowns, and board-ready reports</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <Select value={year} onValueChange={(v) => setYear(v)}>
-            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-24 sm:w-32 h-9 text-xs sm:text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="2026">2026</SelectItem>
               <SelectItem value="2025">2025</SelectItem>
@@ -45,15 +45,15 @@ export default function ReportsPage() {
             </SelectContent>
           </Select>
 
-          <Button variant="outline" asChild>
+          <Button variant="outline" size="sm" asChild className="h-9 text-xs">
             <a href={`/api/reports/export/pdf?year=${year}`} target="_blank" rel="noreferrer">
-              <FileText className="mr-2 h-4 w-4 text-red-600" /> Print PDF Report
+              <FileText className="mr-1.5 h-3.5 w-3.5 text-red-600" /> PDF Report
             </a>
           </Button>
 
-          <Button asChild>
+          <Button size="sm" asChild className="h-9 text-xs">
             <a href={`/api/reports/export/excel?year=${year}`} download>
-              <FileSpreadsheet className="mr-2 h-4 w-4 text-green-600" /> Export Excel (.xlsx)
+              <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5 text-green-300" /> Export Excel
             </a>
           </Button>
         </div>

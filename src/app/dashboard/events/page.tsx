@@ -49,13 +49,13 @@ export default function EventsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Monthly Events</h1>
-          <p className="text-muted-foreground">Plan association events, track budgets, and link income/expense transactions</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Monthly Events</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Plan association events, track budgets, and link income/expense transactions</p>
         </div>
-        <Button onClick={() => setShowAddForm(!showAddForm)}>
-          <Plus className="mr-2 h-4 w-4" /> Create Event
+        <Button onClick={() => setShowAddForm(!showAddForm)} size="sm" className="w-full sm:w-auto h-9 text-xs">
+          <Plus className="mr-1.5 h-3.5 w-3.5" /> Create Event
         </Button>
       </div>
 

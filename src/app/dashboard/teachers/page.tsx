@@ -68,13 +68,13 @@ export default function TeachersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Teachers & Payroll</h1>
-          <p className="text-muted-foreground">Manage teacher profiles, honorarium payouts, and monthly payroll history</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Teachers &amp; Payroll</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Manage teacher profiles, honorarium payouts, and monthly payroll history</p>
         </div>
-        <Button onClick={() => setShowAddForm(!showAddForm)}>
-          <Plus className="mr-2 h-4 w-4" /> Add Teacher
+        <Button onClick={() => setShowAddForm(!showAddForm)} size="sm" className="w-full sm:w-auto h-9 text-xs">
+          <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Teacher
         </Button>
       </div>
 

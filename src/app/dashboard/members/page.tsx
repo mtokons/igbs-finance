@@ -75,47 +75,47 @@ export default function MembersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Members Directory</h1>
-          <p className="text-muted-foreground">{members.length} active registered members</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Members Directory</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">{members.length} active registered members</p>
         </div>
-        <div className="flex gap-2">
-          <label>
+        <div className="flex items-center gap-2">
+          <label className="flex-1 sm:flex-initial">
             <input type="file" accept=".csv,.txt" className="hidden" onChange={handleImport} />
-            <Button variant="outline" asChild>
-              <span><Upload className="mr-2 h-4 w-4" />Bulk Import CSV</span>
+            <Button variant="outline" size="sm" asChild className="w-full sm:w-auto h-9 text-xs">
+              <span><Upload className="mr-1.5 h-3.5 w-3.5" />Import CSV</span>
             </Button>
           </label>
-          <Button onClick={() => setShowForm(!showForm)}>
-            <Plus className="mr-2 h-4 w-4" />Add Member
+          <Button onClick={() => setShowForm(!showForm)} size="sm" className="flex-1 sm:flex-initial h-9 text-xs">
+            <Plus className="mr-1.5 h-3.5 w-3.5" />Add Member
           </Button>
         </div>
       </div>
 
-      {importMsg && <p className="text-sm text-green-700 font-medium">{importMsg}</p>}
+      {importMsg && <p className="text-xs sm:text-sm text-green-700 font-medium p-2 bg-green-500/10 rounded-md border border-green-500/20">{importMsg}</p>}
 
       {showForm && (
-        <Card>
-          <CardHeader><CardTitle>Add New Member</CardTitle></CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreate} className="grid gap-4 md:grid-cols-2">
-              <div><Label>Full Name</Label><Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} required /></div>
-              <div><Label>Email Address</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-              <div><Label>Member Code / ID</Label><Input value={form.memberCode} onChange={(e) => setForm({ ...form, memberCode: e.target.value })} /></div>
-              <div><Label>Monthly Fee (€)</Label><Input type="number" step="0.01" value={form.monthlyFee} onChange={(e) => setForm({ ...form, monthlyFee: e.target.value })} required /></div>
-              <div className="md:col-span-2"><Button type="submit" disabled={loading}>Save Member</Button></div>
+        <Card className="shadow-sm">
+          <CardHeader className="p-4 sm:p-6 pb-2"><CardTitle className="text-base sm:text-lg">Add New Member</CardTitle></CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <form onSubmit={handleCreate} className="grid gap-3 sm:gap-4 md:grid-cols-2">
+              <div className="space-y-1"><Label className="text-xs">Full Name</Label><Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} required /></div>
+              <div className="space-y-1"><Label className="text-xs">Email Address</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">Member Code / ID</Label><Input value={form.memberCode} onChange={(e) => setForm({ ...form, memberCode: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">Monthly Fee (€)</Label><Input type="number" step="0.01" value={form.monthlyFee} onChange={(e) => setForm({ ...form, monthlyFee: e.target.value })} required /></div>
+              <div className="md:col-span-2 pt-1"><Button type="submit" size="sm" className="w-full sm:w-auto text-xs" disabled={loading}>Save Member</Button></div>
             </form>
           </CardContent>
         </Card>
       )}
 
-      <div className="relative max-w-sm">
+      <div className="relative w-full sm:max-w-sm">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search member by name or code..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
+        <Input placeholder="Search member by name or code..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 text-xs sm:text-sm h-9" />
       </div>
 
-      <Card>
+      <Card className="shadow-sm">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
