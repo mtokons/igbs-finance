@@ -18,7 +18,13 @@ export default withAuth(
         if (req.nextUrl.pathname.startsWith("/login")) {
           return true;
         }
+        if (req.nextUrl.pathname.startsWith("/status")) {
+          return true;
+        }
         if (req.nextUrl.pathname.startsWith("/api/auth")) {
+          return true;
+        }
+        if (req.nextUrl.pathname.startsWith("/api/student-status")) {
           return true;
         }
         if (req.nextUrl.pathname.startsWith("/api/bank/gocardless/callback")) {
