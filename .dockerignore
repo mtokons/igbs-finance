@@ -1,0 +1,13 @@
+node_modules
+.next
+build_output
+.git
+.gitignore
+*.db
+*.db-journal
+.env
+.env.*
+npm-debug.log
+Dockerfile
+.dockerignore
+deploy

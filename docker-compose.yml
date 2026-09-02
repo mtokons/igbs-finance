@@ -1,0 +1,27 @@
+services:
+  igbs:
+    build: .
+    image: igbs-finance:latest
+    container_name: igbs-finance
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3010
+      - DATABASE_URL=file:/data/prod.db
+      # Public URL — must match the Caddy site address (HTTPS).
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-https://igbs.mysccg.de}
+      # REQUIRED: a strong 32+ char secret. Set in deploy/.env.igbs on the server.
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - CRON_SECRET=${CRON_SECRET:-}
+      # Optional Gmail SMTP for enrollment/invoice emails.
+      - GMAIL_USER=${GMAIL_USER:-}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:-}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-IGBS e.V. Hamburg}
+    volumes:
+      - igbs-data:/data
+    # Bind to localhost only; the host's existing Caddy reverse-proxies to it.
+    ports:
+      - "127.0.0.1:3010:3010"
+
+volumes:
+  igbs-data:

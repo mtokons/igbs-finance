@@ -1,0 +1,10 @@
+# Append this block to the VPS Caddyfile (e.g. /etc/caddy/Caddyfile), then reload Caddy:
+#   sudo caddy reload --config /etc/caddy/Caddyfile
+#
+# Prerequisite: a DNS A record for igbs.mysccg.de must point to the VPS public IP,
+# otherwise Caddy cannot issue an HTTPS certificate.
+
+igbs.mysccg.de {
+	encode gzip
+	reverse_proxy 127.0.0.1:3010
+}
