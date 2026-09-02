@@ -23,8 +23,10 @@ export async function POST(req: NextRequest) {
   }
 
   const redirectUrl =
-    process.env.GOCARDLESS_REDIRECT_URL ??
-    `${process.env.NEXTAUTH_URL}/api/bank/gocardless/callback`;
+    (process.env.GOCARDLESS_REDIRECT_URL && process.env.GOCARDLESS_REDIRECT_URL.trim()) ||
+    (process.env.NEXTAUTH_URL && process.env.NEXTAUTH_URL.trim()
+      ? `${process.env.NEXTAUTH_URL}/api/bank/gocardless/callback`
+      : "http://localhost:3000/api/bank/gocardless/callback");
 
   const requisition = await createRequisition(institutionId, redirectUrl);
 
