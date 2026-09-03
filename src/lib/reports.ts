@@ -159,36 +159,56 @@ export async function getDashboardStats() {
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
 
-  const [duesSummary, unmatchedCount, recentTransactions, bankConnection] = await Promise.all([
-    prisma.membershipPayment.groupBy({
-      by: ["status"],
-      where: { periodYear: year, periodMonth: month },
-      _count: true,
-    }),
-    prisma.bankTransaction.count({
-      where: { reconciliationStatus: { in: ["UNMATCHED", "SUGGESTED"] } },
-    }),
-    prisma.bankTransaction.findMany({
-      take: 5,
-      orderBy: { bookingDate: "desc" },
-      include: { category: true },
-    }),
-    prisma.bankConnection.findFirst({ orderBy: { updatedAt: "desc" } }),
-  ]);
+  try {
+    const [duesSummary, unmatchedCount, recentTransactions, bankConnection] = await Promise.all([
+      prisma.membershipPayment.groupBy({
+        by: ["status"],
+        where: { periodYear: year, periodMonth: month },
+        _count: true,
+      }),
+      prisma.bankTransaction.count({
+        where: { reconciliationStatus: { in: ["UNMATCHED", "SUGGESTED"] } },
+      }),
+      prisma.bankTransaction.findMany({
+        take: 5,
+        orderBy: { bookingDate: "desc" },
+        include: { category: true },
+      }),
+      prisma.bankConnection.findFirst({ orderBy: { updatedAt: "desc" } }),
+    ]);
 
-  const monthlySummary = await getMonthlySummary(year, month);
+    const monthlySummary = await getMonthlySummary(year, month);
 
-  const pendingDues =
-    duesSummary.find((d) => d.status === "PENDING")?._count ?? 0;
-  const overdueDues =
-    duesSummary.find((d) => d.status === "OVERDUE")?._count ?? 0;
+    const pendingDues =
+      duesSummary.find((d) => d.status === "PENDING")?._count ?? 0;
+    const overdueDues =
+      duesSummary.find((d) => d.status === "OVERDUE")?._count ?? 0;
 
-  return {
-    pendingDues,
-    overdueDues,
-    unmatchedCount,
-    monthlySummary,
-    recentTransactions,
-    bankConnection,
-  };
+    return {
+      pendingDues,
+      overdueDues,
+      unmatchedCount,
+      monthlySummary,
+      recentTransactions,
+      bankConnection,
+    };
+  } catch (error) {
+    console.error("Error retrieving dashboard stats:", error);
+    return {
+      pendingDues: 0,
+      overdueDues: 0,
+      unmatchedCount: 0,
+      monthlySummary: {
+        year,
+        month,
+        monthName: getMonthName(month),
+        totalIncome: 0,
+        totalExpense: 0,
+        net: 0,
+        byCategory: [],
+      },
+      recentTransactions: [],
+      bankConnection: null,
+    };
+  }
 }
