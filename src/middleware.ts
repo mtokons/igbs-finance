@@ -37,6 +37,7 @@ export default withAuth(
           pathname.startsWith("/login") ||
           pathname.startsWith("/status") ||
           pathname.startsWith("/api/auth") ||
+          pathname.startsWith("/api/auth-debug") ||
           pathname.startsWith("/api/student-status") ||
           pathname.startsWith("/api/bank/gocardless/callback")
         ) {
