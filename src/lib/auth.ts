@@ -27,17 +27,23 @@ declare module "next-auth/jwt" {
   }
 }
 
-export const AUTH_SECRET = process.env.NEXTAUTH_SECRET || "igbs-local-development-secret-key-32chars";
+const rawSecret = (process.env.NEXTAUTH_SECRET || "").trim() || (process.env.AUTH_SECRET || "").trim();
+export const AUTH_SECRET = rawSecret || "igbs-local-development-secret-key-32chars";
+process.env.NEXTAUTH_SECRET = AUTH_SECRET;
+process.env.AUTH_SECRET = AUTH_SECRET;
 
-// Sanitize NEXTAUTH_URL to prevent invalid redirects like https://https
-if (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL === "https" || process.env.NEXTAUTH_URL === "https://") {
+// Strictly trim and sanitize NEXTAUTH_URL to prevent invalid headers and redirects
+const rawUrl = (process.env.NEXTAUTH_URL || "").trim();
+if (!rawUrl || rawUrl === "https" || rawUrl === "https://" || !rawUrl.includes(".")) {
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-    process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+    process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.trim()}`;
   } else if (process.env.VERCEL_URL) {
-    process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`;
+    process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL.trim()}`;
   } else {
     process.env.NEXTAUTH_URL = "https://igbs-finance.vercel.app";
   }
+} else {
+  process.env.NEXTAUTH_URL = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
 }
 
 export const authOptions: NextAuthOptions = {

@@ -1,17 +1,23 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
-const AUTH_SECRET = process.env.NEXTAUTH_SECRET || "igbs-local-development-secret-key-32chars";
+const rawSecret = (process.env.NEXTAUTH_SECRET || "").trim() || (process.env.AUTH_SECRET || "").trim();
+const AUTH_SECRET = rawSecret || "igbs-local-development-secret-key-32chars";
+process.env.NEXTAUTH_SECRET = AUTH_SECRET;
+process.env.AUTH_SECRET = AUTH_SECRET;
 
-// Sanitize NEXTAUTH_URL in middleware edge runtime to avoid https://https issues
-if (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL === "https" || process.env.NEXTAUTH_URL === "https://") {
+// Strictly trim and sanitize NEXTAUTH_URL in middleware edge runtime
+const rawUrl = (process.env.NEXTAUTH_URL || "").trim();
+if (!rawUrl || rawUrl === "https" || rawUrl === "https://" || !rawUrl.includes(".")) {
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-    process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+    process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.trim()}`;
   } else if (process.env.VERCEL_URL) {
-    process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`;
+    process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL.trim()}`;
   } else {
     process.env.NEXTAUTH_URL = "https://igbs-finance.vercel.app";
   }
+} else {
+  process.env.NEXTAUTH_URL = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
 }
 
 export default withAuth(
@@ -37,7 +43,6 @@ export default withAuth(
           pathname.startsWith("/login") ||
           pathname.startsWith("/status") ||
           pathname.startsWith("/api/auth") ||
-          pathname.startsWith("/api/auth-debug") ||
           pathname.startsWith("/api/student-status") ||
           pathname.startsWith("/api/bank/gocardless/callback")
         ) {
