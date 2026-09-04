@@ -114,7 +114,7 @@ async function main() {
     });
   }
 
-  console.log("Seed completed successfully for SQLite database!");
+  console.log("Seed completed successfully!");
 }
 
 main()
