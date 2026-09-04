@@ -32,8 +32,8 @@ export default function LoginPage() {
     setSuccess("");
 
     const result = await signIn("credentials", {
-      email,
-      password,
+      email: email.trim().toLowerCase(),
+      password: password.trim(),
       redirect: false,
     });
 
@@ -131,6 +131,9 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                   />
                 </div>
                 <div className="space-y-2">
