@@ -53,6 +53,33 @@ async function main() {
     },
   });
 
+  const asifPassword = await bcrypt.hash("Asif@IGBS2026!", 12);
+  const haiderPassword = await bcrypt.hash("Haider@IGBS2026!", 12);
+
+  await prisma.user.upsert({
+    where: { email: "habrontheraizo@gmail.com" },
+    update: { passwordHash: asifPassword, role: "ADMIN", username: "asif", name: "Asif Hossain" },
+    create: {
+      email: "habrontheraizo@gmail.com",
+      username: "asif",
+      name: "Asif Hossain",
+      passwordHash: asifPassword,
+      role: "ADMIN",
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { email: "haider74hamburg@hotmail.com" },
+    update: { passwordHash: haiderPassword, role: "ADMIN", username: "haider", name: "Julfiqur Haider" },
+    create: {
+      email: "haider74hamburg@hotmail.com",
+      username: "haider",
+      name: "Julfiqur Haider",
+      passwordHash: haiderPassword,
+      role: "ADMIN",
+    },
+  });
+
   const teacherPassword = await bcrypt.hash("teacher123", 12);
   const studentPassword = await bcrypt.hash("IGBS2026!", 12);
 
