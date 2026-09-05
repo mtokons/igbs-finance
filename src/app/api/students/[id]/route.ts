@@ -146,29 +146,41 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   // Update student fields
-  const updated = await prisma.courseEnrollment.update({
-    where: { id },
-    data: {
-      studentName: body.studentName !== undefined ? body.studentName : existing.studentName,
-      studentEmail: body.studentEmail !== undefined ? body.studentEmail : existing.studentEmail,
-      studentPhone: body.studentPhone !== undefined ? body.studentPhone : existing.studentPhone,
-      guardianName: body.guardianName !== undefined ? body.guardianName : existing.guardianName,
-      guardianPhone: body.guardianPhone !== undefined ? body.guardianPhone : existing.guardianPhone,
-      rollNumber: body.rollNumber !== undefined ? body.rollNumber : existing.rollNumber,
-      semester: body.semester !== undefined ? body.semester : existing.semester,
-      expectedAmount: body.expectedAmount !== undefined ? Number(body.expectedAmount) : existing.expectedAmount,
-      paymentPlan: body.paymentPlan !== undefined ? body.paymentPlan : existing.paymentPlan,
-      installment1Amount: body.installment1Amount !== undefined ? Number(body.installment1Amount) : existing.installment1Amount,
-      installment2Amount: body.installment2Amount !== undefined ? Number(body.installment2Amount) : existing.installment2Amount,
-      status: body.status !== undefined ? body.status : existing.status,
-      notes: body.notes !== undefined ? body.notes : existing.notes,
-    },
-    include: {
-      course: true,
-      member: true,
-      user: true,
-    },
-  });
+  let updated;
+  try {
+    updated = await prisma.courseEnrollment.update({
+      where: { id },
+      data: {
+        courseId: body.courseId !== undefined ? body.courseId : existing.courseId,
+        studentName: body.studentName !== undefined ? body.studentName : existing.studentName,
+        studentEmail: body.studentEmail !== undefined ? body.studentEmail : existing.studentEmail,
+        studentPhone: body.studentPhone !== undefined ? body.studentPhone : existing.studentPhone,
+        guardianName: body.guardianName !== undefined ? body.guardianName : existing.guardianName,
+        guardianPhone: body.guardianPhone !== undefined ? body.guardianPhone : existing.guardianPhone,
+        rollNumber: body.rollNumber !== undefined ? body.rollNumber : existing.rollNumber,
+        semester: body.semester !== undefined ? body.semester : existing.semester,
+        expectedAmount: body.expectedAmount !== undefined ? Number(body.expectedAmount) : existing.expectedAmount,
+        paymentPlan: body.paymentPlan !== undefined ? body.paymentPlan : existing.paymentPlan,
+        installment1Amount: body.installment1Amount !== undefined ? Number(body.installment1Amount) : existing.installment1Amount,
+        installment2Amount: body.installment2Amount !== undefined ? Number(body.installment2Amount) : existing.installment2Amount,
+        status: body.status !== undefined ? body.status : existing.status,
+        notes: body.notes !== undefined ? body.notes : existing.notes,
+      },
+      include: {
+        course: true,
+        member: true,
+        user: true,
+      },
+    });
+  } catch (err: any) {
+    if (err?.code === "P2002") {
+      return NextResponse.json(
+        { error: "Diese Rollennummer ist bereits vergeben, oder dieses Mitglied ist bereits für den Zielkurs eingetragen." },
+        { status: 409 }
+      );
+    }
+    throw err;
+  }
 
   await logAudit(session.user.id, "UPDATE", "StudentEnrollment", id, `${updated.studentName} (${updated.rollNumber})`);
   return NextResponse.json(updated);

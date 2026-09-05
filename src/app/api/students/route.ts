@@ -59,8 +59,9 @@ export async function POST(req: NextRequest) {
 
   const {
     courseId,
-    enrollType, // "member" or "new"
+    enrollType, // "member", "new", or "existing" (existing student joining another course)
     memberId,
+    existingEnrollmentId, // source enrollment id when enrollType === "existing"
     studentName,
     studentEmail,
     studentPhone,
@@ -95,8 +96,22 @@ export async function POST(req: NextRequest) {
   let notifyEmail: string | undefined = undefined;
   let finalMemberId: string | undefined = undefined;
   let studentType = "STUDENT_ONLY";
+  let reuseUserId: string | undefined = undefined;
 
-  if (enrollType === "member" && memberId) {
+  if (enrollType === "existing" && existingEnrollmentId) {
+    const source = await prisma.courseEnrollment.findUnique({
+      where: { id: existingEnrollmentId },
+      include: { member: true, user: true },
+    });
+    if (!source) {
+      return NextResponse.json({ error: "Bestehender Student nicht gefunden." }, { status: 404 });
+    }
+    finalStudentName = source.member?.fullName || source.studentName || "";
+    notifyEmail = source.member?.email || source.studentEmail || undefined;
+    finalMemberId = source.memberId || undefined;
+    studentType = source.studentType;
+    reuseUserId = source.userId || undefined;
+  } else if (enrollType === "member" && memberId) {
     const member = await prisma.member.findUnique({ where: { id: memberId } });
     if (!member) {
       return NextResponse.json({ error: "Mitglied nicht gefunden." }, { status: 404 });
@@ -114,20 +129,24 @@ export async function POST(req: NextRequest) {
     studentType = "STUDENT_ONLY";
   }
 
-  // Provision Student Login User Account
+  // Provision Student Login User Account (reuse existing login if joining an additional course)
   let studentUser = null;
   const initialPassword = tempPassword?.trim() || "IGBS2026!";
-  try {
-    const res = await createStudentUserAccount({
-      name: finalStudentName,
-      email: notifyEmail,
-      rollNumber,
-      studentCode,
-      tempPassword: initialPassword,
-    });
-    studentUser = res.user;
-  } catch (err) {
-    console.warn("Could not create user account for student:", err);
+  if (reuseUserId) {
+    studentUser = await prisma.user.findUnique({ where: { id: reuseUserId } });
+  } else {
+    try {
+      const res = await createStudentUserAccount({
+        name: finalStudentName,
+        email: notifyEmail,
+        rollNumber,
+        studentCode,
+        tempPassword: initialPassword,
+      });
+      studentUser = res.user;
+    } catch (err) {
+      console.warn("Could not create user account for student:", err);
+    }
   }
 
   let enrollment;

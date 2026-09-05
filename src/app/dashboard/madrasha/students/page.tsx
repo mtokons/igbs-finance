@@ -92,9 +92,10 @@ export default function StudentsPage() {
 
   // Add Student Modal State
   const [showAddModal, setShowAddModal] = useState(false);
-  const [enrollType, setEnrollType] = useState<"new" | "member">("new");
+  const [enrollType, setEnrollType] = useState<"new" | "member" | "existing">("new");
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedMemberId, setSelectedMemberId] = useState("");
+  const [selectedExistingEnrollmentId, setSelectedExistingEnrollmentId] = useState("");
   const [studentName, setStudentName] = useState("");
   const [studentEmail, setStudentEmail] = useState("");
   const [studentPhone, setStudentPhone] = useState("");
@@ -120,6 +121,23 @@ export default function StudentsPage() {
   const [payMethod, setPayMethod] = useState("CASH");
   const [payNote, setPayNote] = useState("");
   const [newTempPassword, setNewTempPassword] = useState("IGBS2026!");
+
+  // Edit Student form state
+  const [editForm, setEditForm] = useState({
+    courseId: "",
+    studentName: "",
+    studentEmail: "",
+    studentPhone: "",
+    guardianName: "",
+    guardianPhone: "",
+    rollNumber: "",
+    semester: "",
+    expectedAmount: "0",
+    paymentPlan: "FULL" as "FULL" | "INSTALLMENTS_2",
+    installment1Amount: "0",
+    installment2Amount: "0",
+    status: "PENDING",
+  });
 
   async function loadData() {
     setLoading(true);
@@ -175,6 +193,7 @@ export default function StudentsPage() {
           courseId: selectedCourseId,
           enrollType,
           memberId: enrollType === "member" ? selectedMemberId : undefined,
+          existingEnrollmentId: enrollType === "existing" ? selectedExistingEnrollmentId : undefined,
           studentName: enrollType === "new" ? studentName : undefined,
           studentEmail: enrollType === "new" ? studentEmail : undefined,
           studentPhone,
@@ -272,6 +291,68 @@ export default function StudentsPage() {
     }
   }
 
+  function startEditing(student: StudentEnrollment) {
+    setSelectedStudent(student);
+    setEditForm({
+      courseId: student.courseId,
+      studentName: student.member?.fullName || student.studentName || "",
+      studentEmail: student.studentEmail || student.member?.email || "",
+      studentPhone: student.studentPhone || "",
+      guardianName: student.guardianName || "",
+      guardianPhone: student.guardianPhone || "",
+      rollNumber: student.rollNumber || "",
+      semester: student.semester || student.course?.semester || "Semester 1",
+      expectedAmount: String(student.expectedAmount),
+      paymentPlan: student.paymentPlan as "FULL" | "INSTALLMENTS_2",
+      installment1Amount: String(student.installment1Amount || student.expectedAmount / 2),
+      installment2Amount: String(student.installment2Amount || student.expectedAmount / 2),
+      status: student.status,
+    });
+    setShowEditModal(true);
+  }
+
+  async function handleUpdateStudent(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedStudent) return;
+    setSubmitting(true);
+    setResultMessage(null);
+
+    try {
+      const res = await fetch(`/api/students/${selectedStudent.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseId: editForm.courseId,
+          studentName: editForm.studentName,
+          studentEmail: editForm.studentEmail || null,
+          studentPhone: editForm.studentPhone || null,
+          guardianName: editForm.guardianName || null,
+          guardianPhone: editForm.guardianPhone || null,
+          rollNumber: editForm.rollNumber || null,
+          semester: editForm.semester,
+          expectedAmount: parseFloat(editForm.expectedAmount),
+          paymentPlan: editForm.paymentPlan,
+          installment1Amount: editForm.paymentPlan === "INSTALLMENTS_2" ? parseFloat(editForm.installment1Amount) : parseFloat(editForm.expectedAmount),
+          installment2Amount: editForm.paymentPlan === "INSTALLMENTS_2" ? parseFloat(editForm.installment2Amount) : null,
+          status: editForm.status,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setResultMessage({ type: "error", text: data.error || "Failed to update student." });
+      } else {
+        setShowEditModal(false);
+        setSelectedStudent(null);
+        loadData();
+      }
+    } catch (err: any) {
+      setResultMessage({ type: "error", text: err.message || "An unexpected error occurred." });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleDeleteStudent(student: StudentEnrollment) {
     const name = student.member?.fullName || student.studentName || "this student";
     if (!confirm(`Are you sure you want to remove student "${name}" (Roll: ${student.rollNumber})? This will delete their enrollment, attendance, and evaluation records.`)) {
@@ -302,6 +383,15 @@ export default function StudentsPage() {
     const matchesCourse = selectedCourseFilter === "ALL" || s.courseId === selectedCourseFilter;
     return matchesSearch && matchesCourse;
   });
+
+  // One representative enrollment per distinct student (by linked user, else memberId, else name) for the "Join Another Course" picker
+  const uniqueExistingStudents = Object.values(
+    students.reduce((acc: Record<string, StudentEnrollment>, s) => {
+      const key = s.userId || s.memberId || s.studentName || s.id;
+      if (!acc[key]) acc[key] = s;
+      return acc;
+    }, {})
+  );
 
   return (
     <div className="space-y-6">
@@ -553,6 +643,15 @@ export default function StudentsPage() {
                           <Button
                             size="sm"
                             variant="outline"
+                            className="h-7 w-7 p-0"
+                            title="Edit Student Details"
+                            onClick={() => startEditing(s)}
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
                             className="h-7 text-xs px-2"
                             title="Reset Password / Login info"
                             onClick={() => {
@@ -619,7 +718,7 @@ export default function StudentsPage() {
                     className="flex-1 text-xs h-8"
                     onClick={() => setEnrollType("new")}
                   >
-                    New Student (Student-Only)
+                    New Student
                   </Button>
                   <Button
                     type="button"
@@ -629,6 +728,15 @@ export default function StudentsPage() {
                     onClick={() => setEnrollType("member")}
                   >
                     Existing IGBS Member
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={enrollType === "existing" ? "default" : "ghost"}
+                    className="flex-1 text-xs h-8"
+                    onClick={() => setEnrollType("existing")}
+                  >
+                    Join Another Course
                   </Button>
                 </div>
 
@@ -677,6 +785,25 @@ export default function StudentsPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                ) : enrollType === "existing" ? (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Select Existing Student *</Label>
+                    <Select value={selectedExistingEnrollmentId} onValueChange={setSelectedExistingEnrollmentId}>
+                      <SelectTrigger className="text-xs sm:text-sm">
+                        <SelectValue placeholder="Choose student already registered..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {uniqueExistingStudents.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {(s.member?.fullName || s.studentName)} ({s.rollNumber || s.studentCode})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground pt-1">
+                      Reuses the student&apos;s existing login and enrolls them in an additional course with its own fee.
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -846,6 +973,225 @@ export default function StudentsPage() {
                   </Button>
                   <Button type="submit" size="sm" disabled={submitting}>
                     {submitting ? "Saving..." : "Save & Register Student"}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* EDIT STUDENT MODAL */}
+      {showEditModal && selectedStudent && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+          <Card className="w-full max-w-xl shadow-2xl border max-h-[92vh] flex flex-col">
+            <CardHeader className="p-4 sm:p-6 pb-2 shrink-0 border-b">
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                  <Edit className="h-5 w-5 text-primary" /> Edit Student Enrollment
+                </CardTitle>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setShowEditModal(false)}>
+                  ✕
+                </Button>
+              </div>
+              <CardDescription className="text-xs">
+                Roll Number: <span className="font-mono font-semibold text-primary">{selectedStudent.rollNumber || selectedStudent.studentCode}</span>
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="p-4 sm:p-6 space-y-4 overflow-y-auto">
+              <form onSubmit={handleUpdateStudent} className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Course *</Label>
+                    <Select
+                      value={editForm.courseId}
+                      onValueChange={(val) => {
+                        const c = courses.find((x) => x.id === val);
+                        setEditForm({ ...editForm, courseId: val, semester: c?.semester || editForm.semester });
+                      }}
+                    >
+                      <SelectTrigger className="text-xs sm:text-sm">
+                        <SelectValue placeholder="Select course" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {courses.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name} (€{c.fee})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Semester *</Label>
+                    <Input
+                      value={editForm.semester}
+                      onChange={(e) => setEditForm({ ...editForm, semester: e.target.value })}
+                      className="text-xs sm:text-sm"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Student Full Name *</Label>
+                    <Input
+                      value={editForm.studentName}
+                      onChange={(e) => setEditForm({ ...editForm, studentName: e.target.value })}
+                      className="text-xs sm:text-sm"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Student Email</Label>
+                    <Input
+                      type="email"
+                      value={editForm.studentEmail}
+                      onChange={(e) => setEditForm({ ...editForm, studentEmail: e.target.value })}
+                      className="text-xs sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Student Phone</Label>
+                    <Input
+                      value={editForm.studentPhone}
+                      onChange={(e) => setEditForm({ ...editForm, studentPhone: e.target.value })}
+                      className="text-xs sm:text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Guardian Name</Label>
+                    <Input
+                      value={editForm.guardianName}
+                      onChange={(e) => setEditForm({ ...editForm, guardianName: e.target.value })}
+                      className="text-xs sm:text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Guardian Phone</Label>
+                    <Input
+                      value={editForm.guardianPhone}
+                      onChange={(e) => setEditForm({ ...editForm, guardianPhone: e.target.value })}
+                      className="text-xs sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Roll Number (Unique ID)</Label>
+                    <Input
+                      value={editForm.rollNumber}
+                      onChange={(e) => setEditForm({ ...editForm, rollNumber: e.target.value })}
+                      className="text-xs sm:text-sm font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Enrollment Status</Label>
+                    <Select value={editForm.status} onValueChange={(val) => setEditForm({ ...editForm, status: val })}>
+                      <SelectTrigger className="text-xs sm:text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PENDING">PENDING</SelectItem>
+                        <SelectItem value="PARTIAL">PARTIAL</SelectItem>
+                        <SelectItem value="PAID">PAID</SelectItem>
+                        <SelectItem value="CANCELLED">CANCELLED</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Fee & Installment Plan */}
+                <div className="p-3 bg-muted/40 rounded-lg border space-y-3">
+                  <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Receipt className="h-3.5 w-3.5 text-primary" /> Fee &amp; Payment Installments
+                  </h4>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Payment Plan *</Label>
+                      <Select
+                        value={editForm.paymentPlan}
+                        onValueChange={(val: any) => {
+                          const total = Number(editForm.expectedAmount);
+                          setEditForm({
+                            ...editForm,
+                            paymentPlan: val,
+                            installment1Amount: String(val === "INSTALLMENTS_2" ? total / 2 : total),
+                            installment2Amount: String(val === "INSTALLMENTS_2" ? total / 2 : 0),
+                          });
+                        }}
+                      >
+                        <SelectTrigger className="text-xs sm:text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="FULL">1 Full Payment at a time</SelectItem>
+                          <SelectItem value="INSTALLMENTS_2">2 Installments (50% / 50%)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Total Semester Fee (€) *</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={editForm.expectedAmount}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setEditForm({
+                            ...editForm,
+                            expectedAmount: e.target.value,
+                            installment1Amount: editForm.paymentPlan === "INSTALLMENTS_2" ? String(val / 2) : editForm.installment1Amount,
+                            installment2Amount: editForm.paymentPlan === "INSTALLMENTS_2" ? String(val / 2) : editForm.installment2Amount,
+                          });
+                        }}
+                        className="text-xs sm:text-sm"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {editForm.paymentPlan === "INSTALLMENTS_2" && (
+                    <div className="grid gap-3 sm:grid-cols-2 pt-1">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Installment 1 Amount (€)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={editForm.installment1Amount}
+                          onChange={(e) => setEditForm({ ...editForm, installment1Amount: e.target.value })}
+                          className="text-xs sm:text-sm"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Installment 2 Amount (€)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={editForm.installment2Amount}
+                          onChange={(e) => setEditForm({ ...editForm, installment2Amount: e.target.value })}
+                          className="text-xs sm:text-sm"
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setShowEditModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" size="sm" disabled={submitting}>
+                    {submitting ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
               </form>
