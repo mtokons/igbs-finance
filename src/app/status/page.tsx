@@ -63,7 +63,7 @@ export default function StudentStatusPage() {
           <CardContent className="p-4 sm:p-6 pt-0 space-y-4 sm:space-y-6">
             <form onSubmit={handleSearch} className="flex gap-2">
               <Input
-                placeholder="Student ID (e.g. STU-0001) or Email..."
+                placeholder="Roll No (e.g. RN-2026-001), Student ID (STU-0001) or Email..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 required
@@ -85,11 +85,12 @@ export default function StudentStatusPage() {
                 <div className="flex items-start justify-between border-b pb-3">
                   <div>
                     <h3 className="font-bold text-lg">{data.studentName}</h3>
-                    <p className="text-xs text-muted-foreground">{data.courseName}</p>
+                    <p className="text-xs text-muted-foreground">{data.courseName} • {data.semester}</p>
+                    {data.teacherName && <p className="text-[11px] text-muted-foreground">Teacher: {data.teacherName}</p>}
                   </div>
                   <div className="text-right">
                     <span className="font-mono text-xs px-2 py-1 rounded bg-muted block mb-1">
-                      {data.studentId}
+                      {data.rollNumber || data.studentId}
                     </span>
                     <Badge variant={data.status === "PAID" ? "success" : "warning"}>
                       {data.status === "PAID" ? "Paid" : data.status === "PARTIAL" ? "Partial" : "Payment Pending"}
@@ -99,7 +100,7 @@ export default function StudentStatusPage() {
 
                 <div className="grid grid-cols-3 gap-2 text-center py-2 bg-muted/40 rounded-md text-sm">
                   <div>
-                    <p className="text-xs text-muted-foreground">Course Fee</p>
+                    <p className="text-xs text-muted-foreground">Semester Fee</p>
                     <p className="font-semibold">{formatCurrency(data.expectedFee)}</p>
                   </div>
                   <div>
@@ -111,6 +112,35 @@ export default function StudentStatusPage() {
                     <p className="font-semibold text-destructive">{formatCurrency(data.dueAmount)}</p>
                   </div>
                 </div>
+
+                {data.paymentPlan === "INSTALLMENTS_2" && (
+                  <div className="grid grid-cols-2 gap-2 text-xs p-2.5 bg-muted/30 rounded-lg border">
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Installment 1 ({formatCurrency(data.installment1Amount)})</span>
+                      <Badge variant={data.installment1Status === "PAID" ? "success" : "secondary"} className="text-[10px] mt-0.5">
+                        {data.installment1Status === "PAID" ? "Paid" : "Pending"}
+                      </Badge>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Installment 2 ({formatCurrency(data.installment2Amount)})</span>
+                      <Badge variant={data.installment2Status === "PAID" ? "success" : "secondary"} className="text-[10px] mt-0.5">
+                        {data.installment2Status === "PAID" ? "Paid" : "Pending"}
+                      </Badge>
+                    </div>
+                  </div>
+                )}
+
+                {data.evaluation && (
+                  <div className="p-3 bg-muted/40 rounded-lg border text-xs space-y-1.5">
+                    <div className="flex justify-between items-center font-bold">
+                      <span>Performance &amp; Grade</span>
+                      <Badge variant="success">{data.evaluation.grade || "Passed"} ({data.evaluation.totalScore}%)</Badge>
+                    </div>
+                    {data.evaluation.remarks && (
+                      <p className="text-[11px] text-muted-foreground italic">&quot;{data.evaluation.remarks}&quot;</p>
+                    )}
+                  </div>
+                )}
 
                 {data.payments && data.payments.length > 0 && (
                   <div className="space-y-2 pt-2 border-t text-xs">

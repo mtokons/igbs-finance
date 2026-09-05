@@ -149,14 +149,27 @@ export async function applyCourseMatch(transactionId: string, enrollmentId: stri
     _sum: { amount: true },
   });
   const paidAmount = agg._sum.amount ?? amount;
-  const status = paidAmount >= decimalToNumber(enrollment.expectedAmount) ? "PAID" : "PARTIAL";
+  const isFullyPaid = paidAmount >= decimalToNumber(enrollment.expectedAmount);
+  const status = isFullyPaid ? "PAID" : "PARTIAL";
+
+  let inst1Status = enrollment.installment1Status;
+  let inst2Status = enrollment.installment2Status;
+  if (enrollment.paymentPlan === "INSTALLMENTS_2") {
+    const inst1Amt = enrollment.installment1Amount || decimalToNumber(enrollment.expectedAmount) / 2;
+    if (paidAmount >= inst1Amt) inst1Status = "PAID";
+    if (paidAmount >= decimalToNumber(enrollment.expectedAmount)) inst2Status = "PAID";
+  } else if (isFullyPaid) {
+    inst1Status = "PAID";
+  }
 
   await prisma.courseEnrollment.update({
     where: { id: enrollmentId },
     data: {
       paidAmount,
       status,
-      paidAt: new Date(),
+      paidAt: isFullyPaid ? new Date() : enrollment.paidAt,
+      installment1Status: inst1Status,
+      installment2Status: inst2Status,
       bankTransactionId: transactionId,
     },
   });

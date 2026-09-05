@@ -53,6 +53,34 @@ async function main() {
     },
   });
 
+  const teacherPassword = await bcrypt.hash("teacher123", 12);
+  const studentPassword = await bcrypt.hash("IGBS2026!", 12);
+
+  const teacherUser = await prisma.user.upsert({
+    where: { email: "teacher@igbs.local" },
+    update: { passwordHash: teacherPassword },
+    create: {
+      email: "teacher@igbs.local",
+      name: "Sheikh Abdullah",
+      passwordHash: teacherPassword,
+      role: "TEACHER",
+      mustChangePassword: false,
+    },
+  });
+
+  const studentUser = await prisma.user.upsert({
+    where: { email: "student1@igbs.local" },
+    update: { passwordHash: studentPassword, username: "RN-2026-001" },
+    create: {
+      email: "student1@igbs.local",
+      name: "Ibrahim Ahmed",
+      username: "RN-2026-001",
+      passwordHash: studentPassword,
+      role: "STUDENT",
+      mustChangePassword: true,
+    },
+  });
+
   for (const cat of defaultCategories) {
     await prisma.category.upsert({
       where: { name: cat.name },
@@ -79,10 +107,12 @@ async function main() {
 
   const teacher = await prisma.teacher.upsert({
     where: { id: "seed-teacher-1" },
-    update: {},
+    update: { userId: teacherUser.id },
     create: {
       id: "seed-teacher-1",
+      userId: teacherUser.id,
       name: "Sheikh Abdullah",
+      email: "teacher@igbs.local",
       defaultSalary: 500,
       paymentHint: "Madrasha Honorarium",
     },
@@ -90,27 +120,96 @@ async function main() {
 
   const course = await prisma.course.upsert({
     where: { id: "seed-course-1" },
-    update: {},
+    update: {
+      teacherId: teacher.id,
+      semester: "Semester 1 (2026)",
+      schedule: "Sat & Sun 10:00 - 12:00",
+      room: "Room 1 / Main Hall",
+    },
     create: {
       id: "seed-course-1",
-      name: "Quran Beginners Course",
-      fee: 50,
+      name: "Quran Beginners & Tajweed",
+      code: "QUR-101",
+      semester: "Semester 1 (2026)",
+      fee: 60,
+      teacherId: teacher.id,
+      schedule: "Sat & Sun 10:00 - 12:00",
+      room: "Room 1 / Main Hall",
       startDate: new Date(),
-      description: "Fundamentals of Quranic recitation and Arabic letters",
+      description: "Fundamentals of Quranic recitation, Noorani Qaida, and Islamic studies",
     },
   });
 
-  // Ensure every enrollment has a unique student ID (STU-0001 ...).
-  const missingCodes = await prisma.courseEnrollment.findMany({
-    where: { studentCode: null },
-    orderBy: { enrolledAt: "asc" },
+  // Seed sample student enrollment
+  const enrollment = await prisma.courseEnrollment.upsert({
+    where: { id: "seed-enrollment-1" },
+    update: {},
+    create: {
+      id: "seed-enrollment-1",
+      courseId: course.id,
+      userId: studentUser.id,
+      rollNumber: "RN-2026-001",
+      studentCode: "STU-0001",
+      studentType: "STUDENT_ONLY",
+      studentName: "Ibrahim Ahmed",
+      studentEmail: "student1@igbs.local",
+      studentPhone: "+49 176 12345678",
+      guardianName: "Ahmed Ali",
+      guardianPhone: "+49 176 98765432",
+      semester: "Semester 1 (2026)",
+      expectedAmount: 60,
+      paidAmount: 30,
+      paymentPlan: "INSTALLMENTS_2",
+      installment1Amount: 30,
+      installment1Status: "PAID",
+      installment1PaidAt: new Date(),
+      installment2Amount: 30,
+      installment2Status: "PENDING",
+      status: "PARTIAL",
+    },
   });
-  let seq = await prisma.courseEnrollment.count({ where: { studentCode: { not: null } } });
-  for (const en of missingCodes) {
-    seq++;
-    await prisma.courseEnrollment.update({
-      where: { id: en.id },
-      data: { studentCode: `STU-${String(seq).padStart(4, "0")}` },
+
+  // Seed sample attendance
+  await prisma.attendance.upsert({
+    where: {
+      courseId_enrollmentId_date: {
+        courseId: course.id,
+        enrollmentId: enrollment.id,
+        date: new Date(new Date().setHours(12, 0, 0, 0)),
+      },
+    },
+    update: {},
+    create: {
+      courseId: course.id,
+      enrollmentId: enrollment.id,
+      teacherId: teacher.id,
+      date: new Date(new Date().setHours(12, 0, 0, 0)),
+      status: "PRESENT",
+      notes: "On time, great participation",
+    },
+  });
+
+  // Seed sample evaluation
+  const existingEval = await prisma.studentEvaluation.findFirst({
+    where: { enrollmentId: enrollment.id, semester: "Semester 1 (2026)" },
+  });
+  if (!existingEval) {
+    await prisma.studentEvaluation.create({
+      data: {
+        courseId: course.id,
+        enrollmentId: enrollment.id,
+        teacherId: teacher.id,
+        semester: "Semester 1 (2026)",
+        quranRecitation: 88,
+        tajweed: 84,
+        memorization: 90,
+        islamicStudies: 92,
+        behavior: 95,
+        attendanceScore: 94,
+        totalScore: 90.5,
+        grade: "A+ (Excellent)",
+        remarks: "MashaAllah, outstanding memorization and good adherence to Tajweed rules.",
+      },
     });
   }
 

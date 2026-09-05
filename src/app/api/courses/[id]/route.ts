@@ -2,19 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth, requireWriteAccess } from "@/lib/session";
 import { isEmailConfigured, sendEmail, buildEnrollmentEmail } from "@/lib/email";
-
-// Unique, human-readable student ID (STU-0001 ...).
-async function nextStudentCode(): Promise<string> {
-  const count = await prisma.courseEnrollment.count();
-  let n = count + 1;
-  for (let i = 0; i < 100; i++) {
-    const code = `STU-${String(n).padStart(4, "0")}`;
-    const exists = await prisma.courseEnrollment.findUnique({ where: { studentCode: code } });
-    if (!exists) return code;
-    n++;
-  }
-  return `STU-${Date.now()}`;
-}
+import { generateNextRollNumber, generateNextStudentCode, createStudentUserAccount } from "@/lib/madrasha";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await requireAuth();
@@ -22,16 +10,34 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const course = await prisma.course.findUnique({
     where: { id },
     include: {
+      teacher: true,
       enrollments: {
         orderBy: { enrolledAt: "desc" },
         include: {
           member: true,
+          user: { select: { id: true, email: true, username: true, role: true } },
           bankTransaction: true,
           payments: {
             orderBy: { paidAt: "desc" },
             include: { bankTransaction: true },
           },
+          attendances: {
+            orderBy: { date: "desc" },
+            take: 5,
+          },
+          evaluations: {
+            orderBy: { evaluationDate: "desc" },
+            take: 1,
+          },
         },
+      },
+      attendances: {
+        orderBy: { date: "desc" },
+        include: { enrollment: true, teacher: true },
+      },
+      evaluations: {
+        orderBy: { evaluationDate: "desc" },
+        include: { enrollment: true, teacher: true },
       },
     },
   });
@@ -55,16 +61,30 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const expectedAmount = Number(body.expectedAmount ?? course.fee ?? 50.0);
-    const enrollData: {
-      courseId: string;
-      expectedAmount: number;
-      status: string;
-      studentCode: string;
-      memberId?: string;
-      studentName?: string;
-      studentEmail?: string;
-      studentPhone?: string;
-    } = { courseId: id, expectedAmount, status: "PENDING", studentCode: await nextStudentCode() };
+    const paymentPlan = body.paymentPlan === "INSTALLMENTS_2" ? "INSTALLMENTS_2" : "FULL";
+    const inst1 = paymentPlan === "INSTALLMENTS_2" ? (body.installment1Amount ? Number(body.installment1Amount) : expectedAmount / 2) : expectedAmount;
+    const inst2 = paymentPlan === "INSTALLMENTS_2" ? (body.installment2Amount ? Number(body.installment2Amount) : expectedAmount / 2) : null;
+
+    const rollNumber = body.rollNumber?.trim() || await generateNextRollNumber();
+    const studentCode = await generateNextStudentCode();
+
+    const enrollData: any = {
+      courseId: id,
+      rollNumber,
+      studentCode,
+      semester: body.semester || course.semester || "Semester 1",
+      expectedAmount,
+      paidAmount: 0,
+      paymentPlan,
+      installment1Amount: inst1,
+      installment1Status: "PENDING",
+      installment2Amount: inst2,
+      installment2Status: paymentPlan === "INSTALLMENTS_2" ? "PENDING" : null,
+      status: "PENDING",
+      guardianName: body.guardianName || null,
+      guardianPhone: body.guardianPhone || null,
+      notes: body.notes || null,
+    };
 
     let studentName: string;
     let notifyEmail: string | undefined;
@@ -75,6 +95,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         return NextResponse.json({ error: "Mitglied nicht gefunden" }, { status: 404 });
       }
       enrollData.memberId = member.id;
+      enrollData.studentType = "MEMBER";
       studentName = member.fullName;
       notifyEmail = member.email ?? undefined;
     } else {
@@ -83,10 +104,31 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         return NextResponse.json({ error: "Name des Studenten ist erforderlich" }, { status: 400 });
       }
       const studentEmail = String(body.studentEmail ?? "").trim() || undefined;
+      enrollData.studentType = "STUDENT_ONLY";
       enrollData.studentName = studentName;
       enrollData.studentEmail = studentEmail;
       enrollData.studentPhone = String(body.studentPhone ?? "").trim() || undefined;
       notifyEmail = studentEmail;
+    }
+
+    // Auto-create user login account for student
+    let userAccountInfo = null;
+    try {
+      const { user: studentUser, tempPassword } = await createStudentUserAccount({
+        name: studentName,
+        email: notifyEmail,
+        rollNumber,
+        studentCode,
+        tempPassword: body.tempPassword || "IGBS2026!",
+      });
+      enrollData.userId = studentUser.id;
+      userAccountInfo = {
+        username: studentUser.username || rollNumber,
+        email: studentUser.email,
+        tempPassword,
+      };
+    } catch (uErr) {
+      console.warn("Could not create student user account:", uErr);
     }
 
     let enrollment;
@@ -94,7 +136,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       enrollment = await prisma.courseEnrollment.create({ data: enrollData });
     } catch (err: any) {
       if (err?.code === "P2002") {
-        return NextResponse.json({ error: "Dieses Mitglied ist bereits für den Kurs angemeldet." }, { status: 409 });
+        return NextResponse.json({ error: "Dieses Mitglied ist bereits für den Kurs angemeldet oder Rollennummer ist bereits vergeben." }, { status: 409 });
       }
       throw err;
     }
@@ -114,7 +156,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               .split(/[,;]/)
               .map((s: string) => s.trim())
               .filter(Boolean);
-        const mail = buildEnrollmentEmail({ studentName, courseName: course.name, fee: expectedAmount, studentCode: enrollment.studentCode ?? undefined });
+        const mail = buildEnrollmentEmail({
+          studentName,
+          courseName: course.name,
+          fee: expectedAmount,
+          studentCode: enrollment.studentCode ?? enrollment.rollNumber ?? undefined,
+        });
         try {
           await sendEmail({ to: recipient, cc, subject: mail.subject, html: mail.html, text: mail.text });
           emailStatus.sent = true;
@@ -125,18 +172,26 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
-    return NextResponse.json({ enrollment, email: emailStatus }, { status: 201 });
+    return NextResponse.json({ enrollment, email: emailStatus, userAccount: userAccountInfo }, { status: 201 });
   }
 
   const course = await prisma.course.update({
     where: { id },
     data: {
       name: body.name,
+      code: body.code || null,
       description: body.description || null,
+      semester: body.semester || "Semester 1",
       fee: body.fee,
+      teacherId: body.teacherId || null,
+      schedule: body.schedule || null,
+      room: body.room || null,
       startDate: new Date(body.startDate),
       endDate: body.endDate ? new Date(body.endDate) : null,
       isActive: body.isActive ?? true,
+    },
+    include: {
+      teacher: true,
     },
   });
 

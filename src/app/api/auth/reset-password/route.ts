@@ -7,9 +7,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { email, newPassword } = body;
 
-    if (!email || !newPassword) {
+    const identifier = (email || body.username || "").trim();
+
+    if (!identifier || !newPassword) {
       return NextResponse.json(
-        { error: "Email and new password are required." },
+        { error: "Email/User ID and new password are required." },
         { status: 400 }
       );
     }
@@ -21,13 +23,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: email.trim().toLowerCase() },
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { equals: identifier, mode: "insensitive" } },
+          { username: { equals: identifier, mode: "insensitive" } },
+        ],
+      },
     });
 
     if (!user) {
       return NextResponse.json(
-        { error: "No user found with this email address. Please check your registered email." },
+        { error: "No user found with this Email / ID. Please check your registered credentials." },
         { status: 404 }
       );
     }
@@ -36,7 +43,10 @@ export async function POST(req: NextRequest) {
 
     await prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash },
+      data: {
+        passwordHash,
+        mustChangePassword: false,
+      },
     });
 
     return NextResponse.json({

@@ -8,19 +8,23 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  passwordHash  String?
-  role          String    @default("TREASURER") // ADMIN, TREASURER, VIEWER
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                 String    @id @default(cuid())
+  name               String?
+  email              String    @unique
+  username           String?   @unique
+  emailVerified      DateTime?
+  passwordHash       String?
+  role               String    @default("TREASURER") // ADMIN, TREASURER, TEACHER, STUDENT, VIEWER
+  mustChangePassword Boolean   @default(false)
+  image              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  accounts  Account[]
-  sessions  Session[]
-  auditLogs AuditLog[]
+  accounts           Account[]
+  sessions           Session[]
+  auditLogs          AuditLog[]
+  teacher            Teacher?
+  studentEnrollments CourseEnrollment[]
 }
 
 model Account {
@@ -134,37 +138,61 @@ model MembershipPayment {
 model Course {
   id          String   @id @default(cuid())
   name        String
+  code        String?
   description String?
+  semester    String?  @default("Semester 1")
   fee         Float
+  teacherId   String?
+  schedule    String?
+  room        String?
   startDate   DateTime
   endDate     DateTime?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  teacher     Teacher?             @relation(fields: [teacherId], references: [id], onDelete: SetNull)
   enrollments CourseEnrollment[]
+  attendances Attendance[]
+  evaluations StudentEvaluation[]
 }
 
 model CourseEnrollment {
-  id                String    @id @default(cuid())
-  courseId          String
-  memberId          String?
-  studentCode       String?   @unique
-  studentName       String?
-  studentEmail      String?
-  studentPhone      String?
-  expectedAmount    Float
-  paidAmount        Float     @default(0)
-  status            String    @default("PENDING")
-  bankTransactionId String?   @unique
-  enrolledAt        DateTime  @default(now())
-  paidAt            DateTime?
-  notes             String?
+  id                 String    @id @default(cuid())
+  courseId           String
+  memberId           String?
+  userId             String?
+  rollNumber         String?   @unique
+  studentCode        String?   @unique
+  studentType        String    @default("STUDENT_ONLY") // "MEMBER" or "STUDENT_ONLY"
+  studentName        String?
+  studentEmail       String?
+  studentPhone       String?
+  guardianName       String?
+  guardianPhone      String?
+  semester           String?   @default("Semester 1")
+  expectedAmount     Float
+  paidAmount         Float     @default(0)
+  paymentPlan        String    @default("FULL") // "FULL" (1 installment) or "INSTALLMENTS_2" (2 installments)
+  installment1Amount Float?
+  installment1Status String?   @default("PENDING") // PENDING, PAID, OVERDUE
+  installment1PaidAt DateTime?
+  installment2Amount Float?
+  installment2Status String?   @default("PENDING") // PENDING, PAID, OVERDUE
+  installment2PaidAt DateTime?
+  status             String    @default("PENDING") // PENDING, PARTIAL, PAID, CANCELLED
+  bankTransactionId  String?   @unique
+  enrolledAt         DateTime  @default(now())
+  paidAt             DateTime?
+  notes              String?
 
-  course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  member          Member?          @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  bankTransaction BankTransaction? @relation(fields: [bankTransactionId], references: [id])
+  course          Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  member          Member?             @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  user            User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  bankTransaction BankTransaction?    @relation(fields: [bankTransactionId], references: [id])
   payments        CoursePayment[]
+  attendances     Attendance[]
+  evaluations     StudentEvaluation[]
 
   @@unique([courseId, memberId])
 }
@@ -187,6 +215,7 @@ model CoursePayment {
 
 model Teacher {
   id             String   @id @default(cuid())
+  userId         String?  @unique
   name           String
   email          String?
   phone          String?
@@ -197,7 +226,58 @@ model Teacher {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  user           User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  courses        Course[]
   salaryPayments SalaryPayment[]
+  attendances    Attendance[]
+  evaluations    StudentEvaluation[]
+}
+
+model Attendance {
+  id           String   @id @default(cuid())
+  courseId     String
+  enrollmentId String
+  teacherId    String?
+  date         DateTime
+  status       String   @default("PRESENT") // PRESENT, ABSENT, LATE, EXCUSED
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrollment   CourseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  teacher      Teacher?         @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+
+  @@unique([courseId, enrollmentId, date])
+  @@index([courseId, date])
+  @@index([enrollmentId])
+}
+
+model StudentEvaluation {
+  id              String   @id @default(cuid())
+  courseId        String
+  enrollmentId    String
+  teacherId       String?
+  semester        String   @default("Semester 1")
+  evaluationDate  DateTime @default(now())
+  quranRecitation Float?   // 0-100 or grade
+  tajweed         Float?
+  memorization    Float?
+  islamicStudies  Float?
+  behavior        Float?
+  attendanceScore Float?
+  totalScore      Float?
+  grade           String?  // A+, A, B, C, D, F / Pass, Distinction
+  remarks         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrollment      CourseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  teacher         Teacher?         @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+
+  @@index([courseId, semester])
+  @@index([enrollmentId])
 }
 
 model SalaryPayment {

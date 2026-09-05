@@ -17,14 +17,15 @@ export async function GET(req: NextRequest) {
     const enrollment = await prisma.courseEnrollment.findFirst({
       where: {
         OR: [
-          { studentCode: { equals: query } },
-          { studentEmail: { equals: query } },
-          { member: { email: { equals: query } } },
-          { member: { memberCode: { equals: query } } },
+          { rollNumber: { equals: query, mode: "insensitive" } },
+          { studentCode: { equals: query, mode: "insensitive" } },
+          { studentEmail: { equals: query, mode: "insensitive" } },
+          { member: { email: { equals: query, mode: "insensitive" } } },
+          { member: { memberCode: { equals: query, mode: "insensitive" } } },
         ],
       },
       include: {
-        course: true,
+        course: { include: { teacher: true } },
         member: true,
         payments: {
           orderBy: { paidAt: "desc" },
@@ -36,12 +37,20 @@ export async function GET(req: NextRequest) {
             note: true,
           },
         },
+        attendances: {
+          orderBy: { date: "desc" },
+          take: 5,
+        },
+        evaluations: {
+          orderBy: { evaluationDate: "desc" },
+          take: 1,
+        },
       },
     });
 
     if (!enrollment) {
       return NextResponse.json(
-        { error: `No enrollment record found for "${query}". Please check your Student ID or registered email.` },
+        { error: `No enrollment record found for "${query}". Please check your Roll Number, Student ID, or registered email.` },
         { status: 404 }
       );
     }
@@ -51,23 +60,35 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      studentId: enrollment.studentCode || "N/A",
+      studentId: enrollment.rollNumber || enrollment.studentCode || "N/A",
+      rollNumber: enrollment.rollNumber,
+      studentCode: enrollment.studentCode,
       studentName,
       studentEmail,
       courseName: enrollment.course.name,
+      semester: enrollment.semester || enrollment.course.semester || "Semester 1",
+      teacherName: enrollment.course.teacher?.name || "Assigned Teacher",
       expectedFee: enrollment.expectedAmount,
       paidAmount: enrollment.paidAmount,
       dueAmount: Math.max(0, enrollment.expectedAmount - enrollment.paidAmount),
+      paymentPlan: enrollment.paymentPlan,
+      installment1Amount: enrollment.installment1Amount,
+      installment1Status: enrollment.installment1Status,
+      installment2Amount: enrollment.installment2Amount,
+      installment2Status: enrollment.installment2Status,
       status: enrollment.status,
       enrolledAt: enrollment.enrolledAt,
       payments: enrollment.payments,
+      attendances: enrollment.attendances,
+      evaluation: enrollment.evaluations[0] || null,
       bankDetails: {
         bankName: BANK_DETAILS.bankName,
         accountHolder: `${BANK_DETAILS.accountHolder} (${ORG.name})`,
         iban: BANK_DETAILS.iban,
         bic: BANK_DETAILS.bic,
-        reference: `${enrollment.studentCode || "STUDENT"} Kurs: ${enrollment.course.name}`,
+        reference: `${enrollment.rollNumber || enrollment.studentCode || "STUDENT"} Kurs: ${enrollment.course.name}`,
       },
+      org: ORG,
     });
   } catch (error: any) {
     console.error("Student status lookup error:", error);

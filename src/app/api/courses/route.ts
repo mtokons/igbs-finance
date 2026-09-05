@@ -4,9 +4,14 @@ import { requireAuth, requireWriteAccess } from "@/lib/session";
 import { z } from "zod";
 
 export async function GET() {
-  await requireAuth();
+  const session = await requireAuth();
+  const user = session.user;
+
   const courses = await prisma.course.findMany({
-    include: { _count: { select: { enrollments: true } } },
+    include: {
+      teacher: true,
+      _count: { select: { enrollments: true, attendances: true, evaluations: true } },
+    },
     orderBy: { startDate: "desc" },
   });
   return NextResponse.json(courses);
@@ -14,10 +19,15 @@ export async function GET() {
 
 const schema = z.object({
   name: z.string().min(1),
+  code: z.string().optional(),
   description: z.string().optional(),
+  semester: z.string().optional(),
   fee: z.number().positive(),
+  teacherId: z.string().optional().nullable(),
+  schedule: z.string().optional(),
+  room: z.string().optional(),
   startDate: z.string(),
-  endDate: z.string().optional(),
+  endDate: z.string().optional().nullable(),
 });
 
 export async function POST(req: NextRequest) {
@@ -27,10 +37,18 @@ export async function POST(req: NextRequest) {
   const course = await prisma.course.create({
     data: {
       name: data.name,
-      description: data.description,
+      code: data.code || null,
+      description: data.description || null,
+      semester: data.semester || "Semester 1",
       fee: data.fee,
+      teacherId: data.teacherId || null,
+      schedule: data.schedule || null,
+      room: data.room || null,
       startDate: new Date(data.startDate),
       endDate: data.endDate ? new Date(data.endDate) : null,
+    },
+    include: {
+      teacher: true,
     },
   });
 

@@ -3,7 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 
-export type UserRole = "ADMIN" | "TREASURER" | "VIEWER" | string;
+export type UserRole = "ADMIN" | "TREASURER" | "TEACHER" | "STUDENT" | "VIEWER" | string;
 
 declare module "next-auth" {
   interface Session {
@@ -12,11 +12,17 @@ declare module "next-auth" {
       email: string;
       name?: string | null;
       role: UserRole;
+      username?: string | null;
+      mustChangePassword?: boolean;
+      teacherId?: string | null;
     };
   }
 
   interface User {
     role: UserRole;
+    username?: string | null;
+    mustChangePassword?: boolean;
+    teacherId?: string | null;
   }
 }
 
@@ -24,6 +30,9 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     role: UserRole;
+    username?: string | null;
+    mustChangePassword?: boolean;
+    teacherId?: string | null;
   }
 }
 
@@ -56,7 +65,7 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        email: { label: "Email / Student ID", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
@@ -64,27 +73,46 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const email = credentials.email.trim().toLowerCase();
+        const identifier = credentials.email.trim();
         const password = credentials.password.trim();
 
         try {
-          const user = await prisma.user.findFirst({
+          // Search by email or username (case-insensitive)
+          let user = await prisma.user.findFirst({
             where: {
-              email: {
-                equals: email,
-                mode: "insensitive",
-              },
+              OR: [
+                { email: { equals: identifier, mode: "insensitive" } },
+                { username: { equals: identifier, mode: "insensitive" } },
+              ],
             },
+            include: { teacher: true },
           });
 
+          // If not found, check if identifier matches student enrollment roll number or student code
+          if (!user) {
+            const enrollment = await prisma.courseEnrollment.findFirst({
+              where: {
+                OR: [
+                  { studentCode: { equals: identifier, mode: "insensitive" } },
+                  { rollNumber: { equals: identifier, mode: "insensitive" } },
+                  { studentEmail: { equals: identifier, mode: "insensitive" } },
+                ],
+              },
+              include: { user: { include: { teacher: true } } },
+            });
+            if (enrollment?.user) {
+              user = enrollment.user as any;
+            }
+          }
+
           if (!user?.passwordHash) {
-            console.warn(`[AUTH] User not found for email: ${email}`);
+            console.warn(`[AUTH] User not found for identifier: ${identifier}`);
             return null;
           }
 
           const valid = await bcrypt.compare(password, user.passwordHash);
           if (!valid) {
-            console.warn(`[AUTH] Password invalid for user: ${email}`);
+            console.warn(`[AUTH] Password invalid for user: ${identifier}`);
             return null;
           }
 
@@ -93,9 +121,12 @@ export const authOptions: NextAuthOptions = {
             email: user.email,
             name: user.name,
             role: user.role,
+            username: user.username,
+            mustChangePassword: user.mustChangePassword,
+            teacherId: user.teacher?.id || null,
           };
         } catch (error) {
-          console.error(`[AUTH] Exception in authorize for ${email}:`, error);
+          console.error(`[AUTH] Exception in authorize for ${identifier}:`, error);
           return null;
         }
       },
@@ -118,6 +149,9 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.username = user.username;
+        token.mustChangePassword = user.mustChangePassword;
+        token.teacherId = user.teacherId;
       }
       return token;
     },
@@ -125,6 +159,9 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id;
         session.user.role = token.role;
+        session.user.username = token.username;
+        session.user.mustChangePassword = token.mustChangePassword;
+        session.user.teacherId = token.teacherId;
       }
       return session;
     },
@@ -137,4 +174,12 @@ export function canWrite(role: UserRole): boolean {
 
 export function isAdmin(role: UserRole): boolean {
   return role === "ADMIN";
+}
+
+export function isTeacher(role: UserRole): boolean {
+  return role === "TEACHER" || role === "ADMIN";
+}
+
+export function isStudent(role: UserRole): boolean {
+  return role === "STUDENT";
 }

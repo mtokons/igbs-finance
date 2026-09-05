@@ -145,15 +145,14 @@ export default function LoginPage() {
             {!showReset ? (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
+                  <Label htmlFor="email">Email or Student ID / Roll Number</Label>
                   <Input
                     id="email"
-                    type="email"
-                    placeholder="treasurer@igbs-hamburg.de"
+                    type="text"
+                    placeholder="e.g. STU-0001 or name@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    autoComplete="email"
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}
@@ -161,7 +160,7 @@ export default function LoginPage() {
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password">Password / Temp Password</Label>
                     <button
                       type="button"
                       onClick={() => {
@@ -172,7 +171,7 @@ export default function LoginPage() {
                       }}
                       className="text-xs text-primary hover:underline"
                     >
-                      Forgot / Reset Password?
+                      Forgot / Change Password?
                     </button>
                   </div>
                   <div className="relative">
