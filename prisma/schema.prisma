@@ -67,6 +67,8 @@ model Member {
   fullName    String
   email       String?
   phone       String?
+  address     String?
+  memberType  String?  // Regular Member, Student Member, Madrasha, All
   ibanLast4   String?
   memberCode  String?  @unique
   monthlyFee  Float

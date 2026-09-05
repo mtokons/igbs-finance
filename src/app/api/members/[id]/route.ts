@@ -32,6 +32,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       fullName: body.fullName,
       email: body.email || null,
       phone: body.phone || null,
+      address: body.address || null,
+      memberType: body.memberType || null,
       ibanLast4: body.ibanLast4 || null,
       memberCode: body.memberCode || null,
       monthlyFee: body.monthlyFee,

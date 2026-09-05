@@ -20,7 +20,10 @@ export async function generateNextRollNumber(): Promise<string> {
     const exists = await prisma.courseEnrollment.findUnique({
       where: { rollNumber: candidate },
     });
-    if (!exists) return candidate;
+    const usernameTaken = await prisma.user.findUnique({
+      where: { username: candidate },
+    });
+    if (!exists && !usernameTaken) return candidate;
     seq++;
   }
   return `${prefix}${Date.now().toString().slice(-4)}`;

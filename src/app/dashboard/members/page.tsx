@@ -19,6 +19,8 @@ interface Member {
   fullName: string;
   email: string | null;
   phone: string | null;
+  address: string | null;
+  memberType: string | null;
   ibanLast4: string | null;
   memberCode: string | null;
   monthlyFee: string | number;
@@ -35,7 +37,7 @@ export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ fullName: "", email: "", phone: "", memberCode: "", monthlyFee: "25" });
+  const [form, setForm] = useState({ fullName: "", email: "", phone: "", address: "", memberType: "Regular Member", memberCode: "", monthlyFee: "10" });
   const [loading, setLoading] = useState(false);
   const [importMsg, setImportMsg] = useState("");
 
@@ -45,8 +47,10 @@ export default function MembersPage() {
     fullName: "",
     email: "",
     phone: "",
+    address: "",
+    memberType: "Regular Member",
     memberCode: "",
-    monthlyFee: "25",
+    monthlyFee: "10",
     status: "ACTIVE",
     notes: "",
   });
@@ -68,13 +72,15 @@ export default function MembersPage() {
         fullName: form.fullName,
         email: form.email || undefined,
         phone: form.phone || undefined,
+        address: form.address || undefined,
+        memberType: form.memberType || undefined,
         memberCode: form.memberCode || undefined,
         monthlyFee: parseFloat(form.monthlyFee),
       }),
     });
     setLoading(false);
     setShowForm(false);
-    setForm({ fullName: "", email: "", phone: "", memberCode: "", monthlyFee: "25" });
+    setForm({ fullName: "", email: "", phone: "", address: "", memberType: "Regular Member", memberCode: "", monthlyFee: "10" });
     loadMembers();
   }
 
@@ -91,6 +97,8 @@ export default function MembersPage() {
           fullName: editForm.fullName,
           email: editForm.email || null,
           phone: editForm.phone || null,
+          address: editForm.address || null,
+          memberType: editForm.memberType || null,
           memberCode: editForm.memberCode || null,
           monthlyFee: parseFloat(editForm.monthlyFee),
           status: editForm.status,
@@ -130,6 +138,8 @@ export default function MembersPage() {
       fullName: m.fullName,
       email: m.email || "",
       phone: m.phone || "",
+      address: m.address || "",
+      memberType: m.memberType || "Regular Member",
       memberCode: m.memberCode || "",
       monthlyFee: String(m.monthlyFee),
       status: m.status,
@@ -191,8 +201,21 @@ export default function MembersPage() {
               <div className="space-y-1"><Label className="text-xs">Full Name *</Label><Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} required /></div>
               <div className="space-y-1"><Label className="text-xs">Email Address</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
               <div className="space-y-1"><Label className="text-xs">Phone Number</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-              <div className="space-y-1"><Label className="text-xs">Member Code / ID</Label><Input value={form.memberCode} onChange={(e) => setForm({ ...form, memberCode: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">Member Code / ID</Label><Input value={form.memberCode} onChange={(e) => setForm({ ...form, memberCode: e.target.value })} placeholder="e.g. IGBS66" /></div>
+              <div className="space-y-1">
+                <Label className="text-xs">Member Type</Label>
+                <Select value={form.memberType} onValueChange={(val) => setForm({ ...form, memberType: val })}>
+                  <SelectTrigger className="text-xs sm:text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Regular Member">Regular Member</SelectItem>
+                    <SelectItem value="Student Member">Student Member</SelectItem>
+                    <SelectItem value="Madrasha">Madrasha</SelectItem>
+                    <SelectItem value="All">All</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1"><Label className="text-xs">Monthly Fee (€) *</Label><Input type="number" step="0.01" value={form.monthlyFee} onChange={(e) => setForm({ ...form, monthlyFee: e.target.value })} required /></div>
+              <div className="space-y-1 md:col-span-2"><Label className="text-xs">Address</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
               <div className="md:col-span-2 pt-1 flex justify-end gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
                 <Button type="submit" size="sm" disabled={loading}>Save Member</Button>
@@ -214,6 +237,7 @@ export default function MembersPage() {
               <TableRow>
                 <TableHead>Full Name</TableHead>
                 <TableHead>Member ID</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Email / Phone</TableHead>
                 <TableHead>Monthly Fee</TableHead>
                 <TableHead>Status</TableHead>
@@ -229,6 +253,9 @@ export default function MembersPage() {
                     {m.memberCode ? (
                       <Badge variant="outline" className="font-mono text-xs">{m.memberCode}</Badge>
                     ) : "—"}
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {m.memberType ? <Badge variant="secondary" className="text-[10px]">{m.memberType}</Badge> : "—"}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     <div>{m.email || "—"}</div>
@@ -269,7 +296,7 @@ export default function MembersPage() {
               ))}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground text-sm">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground text-sm">
                     No members found matching your search.
                   </TableCell>
                 </TableRow>
@@ -328,6 +355,26 @@ export default function MembersPage() {
                     value={editForm.memberCode}
                     onChange={(e) => setEditForm({ ...editForm, memberCode: e.target.value })}
                     className="text-xs sm:text-sm font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Member Type</Label>
+                  <Select value={editForm.memberType} onValueChange={(val) => setEditForm({ ...editForm, memberType: val })}>
+                    <SelectTrigger className="text-xs sm:text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Regular Member">Regular Member</SelectItem>
+                      <SelectItem value="Student Member">Student Member</SelectItem>
+                      <SelectItem value="Madrasha">Madrasha</SelectItem>
+                      <SelectItem value="All">All</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-xs">Address</Label>
+                  <Input
+                    value={editForm.address}
+                    onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                    className="text-xs sm:text-sm"
                   />
                 </div>
                 <div className="space-y-1">

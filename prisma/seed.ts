@@ -89,13 +89,7 @@ async function main() {
     });
   }
 
-  const sampleMembers = [
-    { fullName: "Ahmed Rahman", email: "ahmed@example.com", monthlyFee: 25, memberCode: "M001" },
-    { fullName: "Fatima Begum", email: "fatima@example.com", monthlyFee: 25, memberCode: "M002" },
-    { fullName: "Karim Hassan", email: "karim@example.com", monthlyFee: 30, memberCode: "M003" },
-    { fullName: "Nadia Islam", email: "nadia@example.com", monthlyFee: 25, memberCode: "M004" },
-    { fullName: "Yusuf Ali", email: "yusuf@example.com", monthlyFee: 25, memberCode: "M005" },
-  ];
+  const sampleMembers: { fullName: string; email: string; monthlyFee: number; memberCode: string }[] = [];
 
   for (const member of sampleMembers) {
     await prisma.member.upsert({
