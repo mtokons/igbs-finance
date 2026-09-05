@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/session";
 import { isAdmin } from "@/lib/auth";
+import { BANK_DETAILS, ORG } from "@/lib/org";
 
 export async function GET(req: NextRequest) {
   const session = await requireAuth();
@@ -61,5 +62,51 @@ export async function GET(req: NextRequest) {
       mustChangePassword: user.mustChangePassword,
     },
     enrollments,
+    bankDetails: BANK_DETAILS,
+    org: ORG,
+  });
+}
+
+// Student submits a self-reported bank payment for admin verification.
+export async function POST(req: NextRequest) {
+  const session = await requireAuth();
+  const user = session.user;
+  const body = await req.json();
+  const { enrollmentId, amount, method, note, installment } = body;
+
+  if (!enrollmentId || !amount || Number(amount) <= 0) {
+    return NextResponse.json({ error: "Betrag und Kursanmeldung sind erforderlich." }, { status: 400 });
+  }
+
+  const enrollment = await prisma.courseEnrollment.findUnique({ where: { id: enrollmentId } });
+  if (!enrollment) {
+    return NextResponse.json({ error: "Kursanmeldung nicht gefunden." }, { status: 404 });
+  }
+
+  // Ensure the enrollment actually belongs to the logged-in student
+  const isOwner =
+    enrollment.userId === user.id ||
+    (user.username && (enrollment.rollNumber === user.username || enrollment.studentCode === user.username)) ||
+    (user.email && enrollment.studentEmail === user.email);
+
+  if (!isOwner) {
+    return NextResponse.json({ error: "Diese Kursanmeldung gehört nicht zu Ihrem Konto." }, { status: 403 });
+  }
+
+  const payment = await prisma.coursePayment.create({
+    data: {
+      enrollmentId,
+      amount: Number(amount),
+      method: method || "BANK",
+      note: note || (installment ? `Selbstgemeldete Zahlung (Rate ${installment})` : "Selbstgemeldete Zahlung"),
+      status: "PENDING_VERIFICATION",
+      submittedBy: "STUDENT",
+    },
+  });
+
+  return NextResponse.json({
+    success: true,
+    message: "Zahlung übermittelt. Ein Administrator wird sie in Kürze überprüfen.",
+    payment,
   });
 }

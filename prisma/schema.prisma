@@ -207,12 +207,17 @@ model CoursePayment {
   method            String    @default("BANK") // BANK, CASH, MANUAL
   bankTransactionId String?   @unique
   note              String?
+  status            String    @default("CONFIRMED") // PENDING_VERIFICATION, CONFIRMED, REJECTED
+  submittedBy       String    @default("ADMIN") // ADMIN, STUDENT
+  verifiedAt        DateTime?
+  verifiedById      String?
   createdAt         DateTime  @default(now())
 
   enrollment      CourseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   bankTransaction BankTransaction? @relation(fields: [bankTransactionId], references: [id])
 
   @@index([enrollmentId])
+  @@index([status])
 }
 
 model Teacher {

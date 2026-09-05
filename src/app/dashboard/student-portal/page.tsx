@@ -28,6 +28,15 @@ export default function StudentPortalPage() {
   const [portalData, setPortalData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Payment confirmation submission state (per enrollment)
+  const [payingEnrollmentId, setPayingEnrollmentId] = useState<string | null>(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState("BANK");
+  const [payNote, setPayNote] = useState("");
+  const [payInstallment, setPayInstallment] = useState<string>("full");
+  const [payMsg, setPayMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+
   // Change password state
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -95,6 +104,53 @@ export default function StudentPortalPage() {
 
   const enrollments = portalData?.enrollments || [];
   const primaryEnrollment = enrollments[0];
+  const bankDetails = portalData?.bankDetails;
+  const org = portalData?.org;
+
+  function openPaymentForm(enrollment: any) {
+    const remaining = Math.max(0, enrollment.expectedAmount - enrollment.paidAmount);
+    setPayingEnrollmentId(enrollment.id);
+    setPayAmount(String(remaining));
+    setPayMethod("BANK");
+    setPayNote("");
+    setPayInstallment(
+      enrollment.paymentPlan === "INSTALLMENTS_2" ? (enrollment.installment1Status !== "PAID" ? "1" : "2") : "full"
+    );
+    setPayMsg(null);
+  }
+
+  async function handleSubmitPayment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!payingEnrollmentId) return;
+    setSubmittingPayment(true);
+    setPayMsg(null);
+
+    try {
+      const res = await fetch("/api/student-portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enrollmentId: payingEnrollmentId,
+          amount: parseFloat(payAmount),
+          method: payMethod,
+          note: payNote || undefined,
+          installment: payInstallment !== "full" ? payInstallment : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPayMsg({ type: "error", text: data.error || "Failed to submit payment." });
+      } else {
+        setPayMsg({ type: "success", text: data.message || "Payment submitted for verification." });
+        setPayingEnrollmentId(null);
+        loadStudentData();
+      }
+    } catch (err: any) {
+      setPayMsg({ type: "error", text: err.message || "An unexpected error occurred." });
+    } finally {
+      setSubmittingPayment(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -225,6 +281,117 @@ export default function StudentPortalPage() {
                     <span className="font-semibold text-foreground">Payment Reference (Verwendungszweck): </span>
                     <code className="font-mono font-bold text-primary">{en.rollNumber || en.studentCode} {en.course?.name}</code>
                   </div>
+
+                  {bankDetails && remaining > 0 && (
+                    <div className="p-3 bg-muted/30 rounded-lg border space-y-1.5 text-[11px]">
+                      <div className="flex items-center gap-1.5 font-bold text-foreground mb-1">
+                        <Landmark className="h-3.5 w-3.5 text-primary" /> IGBS Bank Details
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                        <div><span className="text-muted-foreground">Bank:</span> {bankDetails.bankName}</div>
+                        <div><span className="text-muted-foreground">Empfänger:</span> {bankDetails.accountHolder}</div>
+                        <div className="col-span-2"><span className="text-muted-foreground">IBAN:</span> <span className="font-mono font-semibold">{bankDetails.iban}</span></div>
+                        <div><span className="text-muted-foreground">BIC:</span> {bankDetails.bic}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Previously submitted payments */}
+                  {en.payments && en.payments.length > 0 && (
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] font-semibold text-muted-foreground">Payment History</span>
+                      {en.payments.map((p: any) => (
+                        <div key={p.id} className="flex items-center justify-between text-[11px] p-2 rounded border bg-card">
+                          <div>
+                            <span className="font-semibold">{formatCurrency(Number(p.amount))}</span>
+                            <span className="text-muted-foreground ml-1">({p.method}) {formatDate(p.paidAt)}</span>
+                          </div>
+                          <Badge
+                            variant={p.status === "CONFIRMED" ? "success" : p.status === "REJECTED" ? "destructive" : "secondary"}
+                            className="text-[10px]"
+                          >
+                            {p.status === "PENDING_VERIFICATION" ? "Awaiting Verification" : p.status}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {remaining > 0 && (
+                    payingEnrollmentId === en.id ? (
+                      <form onSubmit={handleSubmitPayment} className="p-3 bg-muted/40 rounded-lg border space-y-2.5">
+                        {en.paymentPlan === "INSTALLMENTS_2" && (
+                          <div className="space-y-1">
+                            <Label className="text-[11px]">Which installment did you pay?</Label>
+                            <div className="flex gap-1.5">
+                              {["1", "2", "full"].map((opt) => (
+                                <Button
+                                  key={opt}
+                                  type="button"
+                                  size="sm"
+                                  variant={payInstallment === opt ? "default" : "outline"}
+                                  className="h-7 text-[11px] flex-1"
+                                  onClick={() => setPayInstallment(opt)}
+                                >
+                                  {opt === "full" ? "Full Balance" : `Installment ${opt}`}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[11px]">Amount Paid (€) *</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={payAmount}
+                              onChange={(e) => setPayAmount(e.target.value)}
+                              required
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px]">Method</Label>
+                            <select
+                              value={payMethod}
+                              onChange={(e) => setPayMethod(e.target.value)}
+                              className="h-8 w-full text-xs rounded-md border border-input bg-background px-2"
+                            >
+                              <option value="BANK">Bank Transfer</option>
+                              <option value="CASH">Cash</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px]">Note / Reference (optional)</Label>
+                          <Input
+                            value={payNote}
+                            onChange={(e) => setPayNote(e.target.value)}
+                            placeholder="e.g. Transfer date, receipt info"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        {payMsg && (
+                          <div className={`text-[11px] p-2 rounded ${payMsg.type === "success" ? "bg-green-500/10 text-green-700" : "bg-destructive/10 text-destructive"}`}>
+                            {payMsg.text}
+                          </div>
+                        )}
+                        <div className="flex justify-end gap-2 pt-1">
+                          <Button type="button" size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setPayingEnrollmentId(null)}>
+                            Cancel
+                          </Button>
+                          <Button type="submit" size="sm" className="h-7 text-[11px]" disabled={submittingPayment}>
+                            {submittingPayment ? "Submitting..." : "Submit for Verification"}
+                          </Button>
+                        </div>
+                      </form>
+                    ) : (
+                      <Button size="sm" className="w-full text-xs h-8" onClick={() => openPaymentForm(en)}>
+                        <Receipt className="mr-1.5 h-3.5 w-3.5" /> I&apos;ve Paid — Submit Confirmation
+                      </Button>
+                    )
+                  )}
                 </CardContent>
               </Card>
             );

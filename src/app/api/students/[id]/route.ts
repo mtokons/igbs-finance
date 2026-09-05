@@ -38,6 +38,48 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json(student);
 }
 
+// Applies a confirmed payment amount to an enrollment: updates paidAmount, installment statuses, and overall status.
+async function applyConfirmedPayment(
+  enrollment: { id: string; paidAmount: number; expectedAmount: number; paymentPlan: string; installment1Status: string | null; installment1PaidAt: Date | null; installment2Status: string | null; installment2PaidAt: Date | null; paidAt: Date | null },
+  amount: number,
+  targetInstallment?: string | number
+) {
+  const newPaidAmount = enrollment.paidAmount + amount;
+  const isFullyPaid = newPaidAmount >= enrollment.expectedAmount;
+
+  let inst1Status = enrollment.installment1Status;
+  let inst1PaidAt = enrollment.installment1PaidAt;
+  let inst2Status = enrollment.installment2Status;
+  let inst2PaidAt = enrollment.installment2PaidAt;
+
+  if (targetInstallment === 1 || targetInstallment === "1") {
+    inst1Status = "PAID";
+    inst1PaidAt = new Date();
+  } else if (targetInstallment === 2 || targetInstallment === "2") {
+    inst2Status = "PAID";
+    inst2PaidAt = new Date();
+  } else if (isFullyPaid) {
+    inst1Status = "PAID";
+    inst1PaidAt = inst1PaidAt || new Date();
+    inst2Status = enrollment.paymentPlan === "INSTALLMENTS_2" ? "PAID" : null;
+    inst2PaidAt = inst2PaidAt || (enrollment.paymentPlan === "INSTALLMENTS_2" ? new Date() : null);
+  }
+
+  return prisma.courseEnrollment.update({
+    where: { id: enrollment.id },
+    data: {
+      paidAmount: newPaidAmount,
+      status: isFullyPaid ? "PAID" : "PARTIAL",
+      paidAt: isFullyPaid ? new Date() : enrollment.paidAt,
+      installment1Status: inst1Status,
+      installment1PaidAt: inst1PaidAt,
+      installment2Status: inst2Status,
+      installment2PaidAt: inst2PaidAt,
+    },
+    include: { payments: true },
+  });
+}
+
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireWriteAccess();
   const { id } = await params;
@@ -48,7 +90,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Student nicht gefunden." }, { status: 404 });
   }
 
-  // Action: Pay Installment or Record Payment
+  // Action: Pay Installment or Record Payment (admin-recorded, immediately confirmed)
   if (body.action === "recordPayment" || body.action === "payInstallment") {
     const amount = Number(body.amount);
     const method = body.method || "CASH"; // CASH, BANK, MANUAL
@@ -59,54 +101,55 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Ungültiger Zahlungsbetrag." }, { status: 400 });
     }
 
-    // Create payment entry
+    // Create payment entry, confirmed immediately since recorded directly by staff
     await prisma.coursePayment.create({
       data: {
         enrollmentId: id,
         amount,
         method,
         note,
+        status: "CONFIRMED",
+        submittedBy: "ADMIN",
+        verifiedAt: new Date(),
+        verifiedById: session.user.id,
       },
     });
 
-    const newPaidAmount = existing.paidAmount + amount;
-    const isFullyPaid = newPaidAmount >= existing.expectedAmount;
-
-    let inst1Status = existing.installment1Status;
-    let inst1PaidAt = existing.installment1PaidAt;
-    let inst2Status = existing.installment2Status;
-    let inst2PaidAt = existing.installment2PaidAt;
-
-    if (targetInstallment === 1 || targetInstallment === "1") {
-      inst1Status = "PAID";
-      inst1PaidAt = new Date();
-    } else if (targetInstallment === 2 || targetInstallment === "2") {
-      inst2Status = "PAID";
-      inst2PaidAt = new Date();
-    } else if (isFullyPaid) {
-      inst1Status = "PAID";
-      inst1PaidAt = inst1PaidAt || new Date();
-      inst2Status = existing.paymentPlan === "INSTALLMENTS_2" ? "PAID" : null;
-      inst2PaidAt = inst2PaidAt || (existing.paymentPlan === "INSTALLMENTS_2" ? new Date() : null);
-    }
-
-    const updated = await prisma.courseEnrollment.update({
-      where: { id },
-      data: {
-        paidAmount: newPaidAmount,
-        status: isFullyPaid ? "PAID" : "PARTIAL",
-        paidAt: isFullyPaid ? new Date() : existing.paidAt,
-        installment1Status: inst1Status,
-        installment1PaidAt: inst1PaidAt,
-        installment2Status: inst2Status,
-        installment2PaidAt: inst2PaidAt,
-      },
-      include: { payments: true },
-    });
+    const updated = await applyConfirmedPayment(existing, amount, targetInstallment);
 
     await logAudit(session.user.id, "RECORD_PAYMENT", "StudentEnrollment", id, `Paid €${amount}`);
     return NextResponse.json(updated);
   }
+
+  // Action: Approve or reject a student's self-submitted payment confirmation
+  if (body.action === "verifyPayment") {
+    const { paymentId, approve } = body;
+    const payment = await prisma.coursePayment.findUnique({ where: { id: paymentId } });
+    if (!payment || payment.enrollmentId !== id) {
+      return NextResponse.json({ error: "Zahlung nicht gefunden." }, { status: 404 });
+    }
+    if (payment.status !== "PENDING_VERIFICATION") {
+      return NextResponse.json({ error: "Diese Zahlung wurde bereits bearbeitet." }, { status: 409 });
+    }
+
+    if (approve) {
+      await prisma.coursePayment.update({
+        where: { id: paymentId },
+        data: { status: "CONFIRMED", verifiedAt: new Date(), verifiedById: session.user.id },
+      });
+      const updated = await applyConfirmedPayment(existing, payment.amount, body.installment);
+      await logAudit(session.user.id, "VERIFY_PAYMENT", "StudentEnrollment", id, `Approved €${payment.amount} payment`);
+      return NextResponse.json(updated);
+    } else {
+      await prisma.coursePayment.update({
+        where: { id: paymentId },
+        data: { status: "REJECTED", verifiedAt: new Date(), verifiedById: session.user.id },
+      });
+      await logAudit(session.user.id, "VERIFY_PAYMENT", "StudentEnrollment", id, `Rejected €${payment.amount} payment`);
+      return NextResponse.json({ success: true, message: "Zahlung abgelehnt." });
+    }
+  }
+
 
   // Action: Reset Password
   if (body.action === "resetPassword") {

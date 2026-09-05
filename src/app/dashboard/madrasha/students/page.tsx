@@ -23,6 +23,8 @@ import {
   BookOpen,
   Receipt,
   GraduationCap,
+  ShieldCheck,
+  XCircle,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
@@ -122,6 +124,10 @@ export default function StudentsPage() {
   const [payNote, setPayNote] = useState("");
   const [newTempPassword, setNewTempPassword] = useState("IGBS2026!");
 
+  // Pending payment verifications (self-submitted by students)
+  const [pendingPayments, setPendingPayments] = useState<any[]>([]);
+  const [verifyingPaymentId, setVerifyingPaymentId] = useState<string | null>(null);
+
   // Edit Student form state
   const [editForm, setEditForm] = useState({
     courseId: "",
@@ -157,6 +163,8 @@ export default function StudentsPage() {
         setInstallment2Amount(String(Number(coursesData[0].fee || 50) / 2));
       }
       setMembers(await mRes.json());
+      const pRes = await fetch("/api/students/payments/pending");
+      if (pRes.ok) setPendingPayments(await pRes.json());
     } catch (e) {
       console.error(e);
     } finally {
@@ -167,6 +175,27 @@ export default function StudentsPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  async function handleVerifyPayment(payment: any, approve: boolean) {
+    setVerifyingPaymentId(payment.id);
+    try {
+      const res = await fetch(`/api/students/${payment.enrollmentId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verifyPayment", paymentId: payment.id, approve }),
+      });
+      if (res.ok) {
+        loadData();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to process payment verification.");
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setVerifyingPaymentId(null);
+    }
+  }
 
   function handleCourseSelect(courseId: string) {
     setSelectedCourseId(courseId);
@@ -496,6 +525,60 @@ export default function StudentsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Pending Payment Verifications (student self-reported bank/cash payments) */}
+      {isAdminOrTreasurer && pendingPayments.length > 0 && (
+        <Card className="shadow-sm border-amber-500/30">
+          <CardHeader className="p-4 sm:p-6 pb-2">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-amber-600" /> Pending Payment Verifications ({pendingPayments.length})
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Students submitted these payments as paid — review and confirm before they count toward their balance.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0 space-y-2">
+            {pendingPayments.map((p) => {
+              const name = p.enrollment?.member?.fullName || p.enrollment?.studentName || "—";
+              return (
+                <div key={p.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-lg border bg-amber-500/5">
+                  <div className="text-xs">
+                    <div className="font-semibold text-foreground">
+                      {name}{" "}
+                      <Badge variant="outline" className="ml-1 font-mono text-[10px]">
+                        {p.enrollment?.rollNumber || p.enrollment?.studentCode}
+                      </Badge>
+                    </div>
+                    <div className="text-muted-foreground">
+                      {p.enrollment?.course?.name} • {formatCurrency(Number(p.amount))} via {p.method} • Submitted {formatDate(p.createdAt)}
+                    </div>
+                    {p.note && <div className="text-[11px] text-muted-foreground italic">&quot;{p.note}&quot;</div>}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs bg-green-600 hover:bg-green-700"
+                      disabled={verifyingPaymentId === p.id}
+                      onClick={() => handleVerifyPayment(p, true)}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs text-destructive hover:bg-destructive/10"
+                      disabled={verifyingPaymentId === p.id}
+                      onClick={() => handleVerifyPayment(p, false)}
+                    >
+                      <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Students Table */}
       <Card className="shadow-sm">

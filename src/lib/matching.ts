@@ -139,13 +139,16 @@ export async function applyCourseMatch(transactionId: string, enrollmentId: stri
         method: "BANK",
         bankTransactionId: transactionId,
         paidAt: tx.bookingDate,
+        status: "CONFIRMED",
+        submittedBy: "ADMIN",
+        verifiedAt: new Date(),
       },
     });
   }
 
   const enrollment = await prisma.courseEnrollment.findUniqueOrThrow({ where: { id: enrollmentId } });
   const agg = await prisma.coursePayment.aggregate({
-    where: { enrollmentId },
+    where: { enrollmentId, status: "CONFIRMED" },
     _sum: { amount: true },
   });
   const paidAmount = agg._sum.amount ?? amount;
