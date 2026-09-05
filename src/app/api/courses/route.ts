@@ -7,7 +7,21 @@ export async function GET() {
   const session = await requireAuth();
   const user = session.user;
 
+  const whereClause: any = {};
+  if (user.role === "STUDENT") {
+    whereClause.enrollments = {
+      some: {
+        OR: [
+          { userId: user.id },
+          ...(user.username ? [{ rollNumber: user.username }, { studentCode: user.username }] : []),
+          ...(user.email ? [{ studentEmail: user.email }, { member: { email: user.email } }] : []),
+        ],
+      },
+    };
+  }
+
   const courses = await prisma.course.findMany({
+    where: whereClause,
     include: {
       teacher: true,
       _count: { select: { enrollments: true, attendances: true, evaluations: true } },

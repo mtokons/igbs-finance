@@ -25,8 +25,15 @@ export async function GET(req: NextRequest) {
     ];
   }
 
-  // If role is TEACHER, optionally filter courses they teach unless admin/treasurer
-  if (session.user.role === "TEACHER" && session.user.teacherId) {
+  // If role is STUDENT, restrict to student's own enrollments
+  if (session.user.role === "STUDENT") {
+    whereClause.OR = [
+      { userId: session.user.id },
+      ...(session.user.username ? [{ rollNumber: session.user.username }, { studentCode: session.user.username }] : []),
+      ...(session.user.email ? [{ studentEmail: session.user.email }, { member: { email: session.user.email } }] : []),
+    ];
+  } else if (session.user.role === "TEACHER" && session.user.teacherId) {
+    // If role is TEACHER, optionally filter courses they teach unless admin/treasurer
     whereClause.course = { teacherId: session.user.teacherId };
   }
 

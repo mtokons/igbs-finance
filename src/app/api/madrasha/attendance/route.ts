@@ -15,21 +15,28 @@ export async function GET(req: NextRequest) {
   const isUserAdmin = isAdmin(user.role) || user.role === "TREASURER";
   const isUserTeacher = isTeacher(user.role);
 
-  // If student is querying their own attendance
+  // If student is querying attendance, only return their own records
   if (user.role === "STUDENT") {
-    const studentUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: { studentEnrollments: true },
+    const studentEnrollments = await prisma.courseEnrollment.findMany({
+      where: {
+        OR: [
+          { userId: user.id },
+          ...(user.username ? [{ rollNumber: user.username }, { studentCode: user.username }] : []),
+          ...(user.email ? [{ studentEmail: user.email }, { member: { email: user.email } }] : []),
+        ],
+      },
+      select: { id: true },
     });
-    const enrollmentIds = studentUser?.studentEnrollments.map((e) => e.id) || [];
+    const enrollmentIds = studentEnrollments.map((e) => e.id);
     const attendances = await prisma.attendance.findMany({
       where: {
         enrollmentId: { in: enrollmentIds },
         ...(courseId ? { courseId } : {}),
       },
       include: {
-        course: true,
+        course: { include: { teacher: true } },
         teacher: true,
+        enrollment: true,
       },
       orderBy: { date: "desc" },
     });

@@ -38,6 +38,7 @@ export default function AttendancePage() {
   const initialCourseId = searchParams.get("courseId");
   const { data: session } = useSession();
   const user = session?.user;
+  const isStudent = user?.role === "STUDENT";
   const isTeacher = user?.role === "TEACHER";
   const isAdmin = user?.role === "ADMIN" || user?.role === "TREASURER";
 
@@ -47,6 +48,7 @@ export default function AttendancePage() {
   const [students, setStudents] = useState<any[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<Record<string, { status: "PRESENT" | "ABSENT" | "LATE" | "EXCUSED"; notes: string }>>({});
   const [historyRecords, setHistoryRecords] = useState<any[]>([]);
+  const [studentAttendances, setStudentAttendances] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"rollcall" | "history">("rollcall");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -65,8 +67,28 @@ export default function AttendancePage() {
     }
   }
 
+  async function loadStudentAttendance(courseId?: string) {
+    setLoading(true);
+    try {
+      const url = courseId ? `/api/madrasha/attendance?courseId=${courseId}` : `/api/madrasha/attendance`;
+      const res = await fetch(url);
+      if (res.ok) {
+        setStudentAttendances(await res.json());
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function loadStudentsAndAttendance(courseId: string, date: string) {
     if (!courseId) return;
+    if (isStudent) {
+      loadStudentAttendance(courseId);
+      return;
+    }
+
     setLoading(true);
     setSaveMessage(null);
 
@@ -103,7 +125,10 @@ export default function AttendancePage() {
 
   useEffect(() => {
     loadCourses();
-  }, []);
+    if (isStudent) {
+      loadStudentAttendance();
+    }
+  }, [isStudent]);
 
   useEffect(() => {
     if (selectedCourseId) {
@@ -185,12 +210,144 @@ export default function AttendancePage() {
 
   const selectedCourse = courses.find((c) => c.id === selectedCourseId);
 
-  // Calculate quick stats for today
+  // Student specific stats
+  const studentTotal = studentAttendances.length;
+  const studentPresent = studentAttendances.filter((a) => a.status === "PRESENT").length;
+  const studentLate = studentAttendances.filter((a) => a.status === "LATE").length;
+  const studentAbsent = studentAttendances.filter((a) => a.status === "ABSENT").length;
+  const studentExcused = studentAttendances.filter((a) => a.status === "EXCUSED").length;
+  const studentRate = studentTotal > 0 ? Math.round(((studentPresent + studentLate * 0.5) / studentTotal) * 100) : 100;
+
+  // Calculate quick stats for teacher/admin roll call
   const total = students.length;
   const presentCount = Object.values(attendanceRecords).filter((r) => r.status === "PRESENT").length;
   const absentCount = Object.values(attendanceRecords).filter((r) => r.status === "ABSENT").length;
   const lateCount = Object.values(attendanceRecords).filter((r) => r.status === "LATE").length;
   const excusedCount = Object.values(attendanceRecords).filter((r) => r.status === "EXCUSED").length;
+
+  // Student Private View
+  if (isStudent) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+              <ClipboardCheck className="h-7 w-7 text-primary" />
+              My Attendance Record
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Your personal class presence, punctuality, and teacher notes for your enrolled courses
+            </p>
+          </div>
+        </div>
+
+        {/* Student Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <Card className="shadow-sm">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Attendance Rate</p>
+              <h3 className="text-xl font-bold mt-1 text-primary">{studentRate}%</h3>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Present</p>
+              <h3 className="text-xl font-bold mt-1 text-green-600">{studentPresent}</h3>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Late</p>
+              <h3 className="text-xl font-bold mt-1 text-amber-600">{studentLate}</h3>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Absent</p>
+              <h3 className="text-xl font-bold mt-1 text-red-600">{studentAbsent}</h3>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Total Classes</p>
+              <h3 className="text-xl font-bold mt-1 text-foreground">{studentTotal}</h3>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filter by course if multiple */}
+        {courses.length > 1 && (
+          <div className="max-w-xs">
+            <Label className="text-xs font-semibold mb-1 block">Filter Course</Label>
+            <Select value={selectedCourseId} onValueChange={(val) => { setSelectedCourseId(val); loadStudentAttendance(val); }}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="All My Courses" />
+              </SelectTrigger>
+              <SelectContent>
+                {courses.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Student Attendance List */}
+        <Card className="shadow-sm">
+          <CardHeader className="p-4 sm:p-6 pb-2">
+            <CardTitle className="text-base sm:text-lg">Class Presence History</CardTitle>
+            <CardDescription className="text-xs">Only your own attendance records are displayed</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Course</TableHead>
+                  <TableHead>Teacher</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Teacher Remarks</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {studentAttendances.map((att) => (
+                  <TableRow key={att.id}>
+                    <TableCell className="font-semibold text-xs">{formatDate(att.date)}</TableCell>
+                    <TableCell className="text-xs font-medium">{att.course?.name}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{att.teacher?.name || att.course?.teacher?.name || "Teacher"}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          att.status === "PRESENT"
+                            ? "success"
+                            : att.status === "LATE"
+                            ? "warning"
+                            : att.status === "EXCUSED"
+                            ? "secondary"
+                            : "destructive"
+                        }
+                        className="text-[11px]"
+                      >
+                        {att.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{att.notes || "—"}</TableCell>
+                  </TableRow>
+                ))}
+                {studentAttendances.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
+                      {loading ? "Loading attendance records..." : "No attendance recorded for your courses yet."}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

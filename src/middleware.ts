@@ -29,6 +29,19 @@ export default withAuth(
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
+    // Restrict student role to student portal, their own attendance, and evaluations
+    if (role === "STUDENT") {
+      const allowedStudentPaths = [
+        "/dashboard/student-portal",
+        "/dashboard/madrasha/attendance",
+        "/dashboard/madrasha/evaluations",
+      ];
+      const isAllowed = allowedStudentPaths.some((p) => path === p || path.startsWith(p + "/"));
+      if (!isAllowed && path.startsWith("/dashboard")) {
+        return NextResponse.redirect(new URL("/dashboard/student-portal", req.url));
+      }
+    }
+
     return NextResponse.next();
   },
   {

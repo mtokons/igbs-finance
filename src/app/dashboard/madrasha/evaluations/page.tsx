@@ -28,6 +28,7 @@ export default function EvaluationsPage() {
   const initialCourseId = searchParams.get("courseId");
   const { data: session } = useSession();
   const user = session?.user;
+  const isStudent = user?.role === "STUDENT";
 
   const [courses, setCourses] = useState<any[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string>(initialCourseId || "");
@@ -67,16 +68,21 @@ export default function EvaluationsPage() {
   }
 
   async function loadEvaluationsData(courseId: string, semester: string) {
-    if (!courseId) return;
     setLoading(true);
     setMsg(null);
     try {
-      const [sRes, eRes] = await Promise.all([
-        fetch(`/api/students?courseId=${courseId}`),
-        fetch(`/api/madrasha/evaluations?courseId=${courseId}&semester=${encodeURIComponent(semester)}`),
-      ]);
-      setStudents(await sRes.json());
-      setEvaluations(await eRes.json());
+      if (isStudent) {
+        const eRes = await fetch(`/api/madrasha/evaluations${courseId ? `?courseId=${courseId}` : ""}`);
+        setEvaluations(await eRes.json());
+      } else {
+        if (!courseId) return;
+        const [sRes, eRes] = await Promise.all([
+          fetch(`/api/students?courseId=${courseId}`),
+          fetch(`/api/madrasha/evaluations?courseId=${courseId}&semester=${encodeURIComponent(semester)}`),
+        ]);
+        setStudents(await sRes.json());
+        setEvaluations(await eRes.json());
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -89,10 +95,10 @@ export default function EvaluationsPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedCourseId) {
+    if (selectedCourseId || isStudent) {
       loadEvaluationsData(selectedCourseId, selectedSemester);
     }
-  }, [selectedCourseId, selectedSemester]);
+  }, [selectedCourseId, selectedSemester, isStudent]);
 
   function openEvaluationForm(student: any) {
     setSelectedStudent(student);
@@ -164,6 +170,88 @@ export default function EvaluationsPage() {
   }
 
   const selectedCourse = courses.find((c) => c.id === selectedCourseId);
+
+  // Student Private Evaluations View
+  if (isStudent) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+              <Award className="h-7 w-7 text-primary" />
+              My Academic Evaluations &amp; Grades
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Your performance progress in Quran recitation, Tajweed, Memorization, Islamic studies, and Adab
+            </p>
+          </div>
+        </div>
+
+        {/* Filter by course if multiple */}
+        {courses.length > 1 && (
+          <div className="max-w-xs">
+            <Label className="text-xs font-semibold mb-1 block">Filter Course</Label>
+            <Select value={selectedCourseId} onValueChange={(val) => { setSelectedCourseId(val); loadEvaluationsData(val, selectedSemester); }}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="All My Courses" />
+              </SelectTrigger>
+              <SelectContent>
+                {courses.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {evaluations.map((ev) => (
+            <Card key={ev.id} className="shadow-sm border">
+              <CardHeader className="p-4 sm:p-6 pb-2">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <Badge variant="outline" className="text-[10px] font-mono mb-1">
+                      {ev.semester || "Semester 1"}
+                    </Badge>
+                    <CardTitle className="text-base font-bold">{ev.course?.name}</CardTitle>
+                    <CardDescription className="text-xs mt-0.5">
+                      Teacher: {ev.teacher?.name || ev.course?.teacher?.name || "Assigned Teacher"} • Evaluated on {formatDate(ev.evaluationDate)}
+                    </CardDescription>
+                  </div>
+                  <Badge variant="success" className="text-xs font-bold">
+                    {ev.grade || "Passed"} ({ev.totalScore}%)
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-2 space-y-3">
+                <div className="grid grid-cols-2 gap-2 text-xs bg-muted/40 p-3 rounded-lg border">
+                  <div>Quran Recitation: <strong className="text-foreground">{ev.quranRecitation}%</strong></div>
+                  <div>Tajweed Rules: <strong className="text-foreground">{ev.tajweed}%</strong></div>
+                  <div>Memorization (Hifz): <strong className="text-foreground">{ev.memorization}%</strong></div>
+                  <div>Islamic Studies: <strong className="text-foreground">{ev.islamicStudies}%</strong></div>
+                  <div>Behavior &amp; Adab: <strong className="text-foreground">{ev.behavior}%</strong></div>
+                  <div>Attendance Score: <strong className="text-foreground">{ev.attendanceScore}%</strong></div>
+                </div>
+
+                {ev.remarks && (
+                  <div className="p-3 bg-primary/5 rounded-lg border border-primary/10 text-xs space-y-1">
+                    <span className="font-semibold text-primary block">Teacher Feedback:</span>
+                    <p className="text-muted-foreground italic">&quot;{ev.remarks}&quot;</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+
+          {evaluations.length === 0 && (
+            <div className="sm:col-span-2 text-center py-12 text-muted-foreground text-sm">
+              {loading ? "Loading evaluation scorecards..." : "No evaluations have been published for your courses yet."}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
