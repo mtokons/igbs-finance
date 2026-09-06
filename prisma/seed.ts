@@ -69,10 +69,10 @@ async function main() {
   });
 
   await prisma.user.upsert({
-    where: { email: "haider74hamburg@hotmail.com" },
+    where: { email: "haiderjulfiqur400@gmail.com" },
     update: { passwordHash: haiderPassword, role: "ADMIN", username: "haider", name: "Julfiqur Haider" },
     create: {
-      email: "haider74hamburg@hotmail.com",
+      email: "haiderjulfiqur400@gmail.com",
       username: "haider",
       name: "Julfiqur Haider",
       passwordHash: haiderPassword,

@@ -33,7 +33,7 @@ interface Row {
 const rows: Row[] = [
   { memberCode: "IGBS00", fullName: "IGBS Openings Account", memberType: "All", fee: "0", joinDate: "November 2019" },
   { memberCode: "IGBS01", fullName: "Adnan ABDUL HAI", email: "adnanabdulhai@gmail.com", phone: "0152559101", memberType: "Regular Member", fee: "10 Euro", joinDate: "January 2020" },
-  { memberCode: "IGBS02", fullName: "Julfiqur Haider", email: "haider74hamburg@hotmail.com", address: "Billstedter Hauptstr. 75", memberType: "Regular Member", fee: "10 Euro", joinDate: "November 2019" },
+  { memberCode: "IGBS02", fullName: "Julfiqur Haider", email: "haiderjulfiqur400@gmail.com", address: "Billstedter Hauptstr. 75", memberType: "Regular Member", fee: "10 Euro", joinDate: "November 2019" },
   { memberCode: "IGBS03", fullName: "Abdul Mabud", memberType: "Regular Member", fee: "10 Euro", joinDate: "January 2020" },
   { memberCode: "IGBS04", fullName: "Hosnayen Alam Siddiquee", email: "hosnayen.cse@gmail.com", memberType: "Regular Member", fee: "10 Euro", joinDate: "January 2020" },
   { memberCode: "IGBS05", fullName: "Anisul Hoque", memberType: "Regular Member", fee: "10 Euro", joinDate: "January 2020" },

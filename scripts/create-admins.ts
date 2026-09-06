@@ -28,22 +28,52 @@ async function main() {
   });
 
   // 2. Haider Admin
-  const haider = await prisma.user.upsert({
-    where: { email: "haider74hamburg@hotmail.com" },
-    update: {
-      name: "Julfiqur Haider",
-      role: "ADMIN",
-      username: "haider",
-      passwordHash: haiderPassword,
-      mustChangePassword: false,
+  let haiderUser = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: "haider74hamburg@hotmail.com" },
+        { email: "haiderjulfiqur400@gmail.com" },
+        { username: "haider" },
+      ],
     },
-    create: {
-      name: "Julfiqur Haider",
-      email: "haider74hamburg@hotmail.com",
-      username: "haider",
-      role: "ADMIN",
-      passwordHash: haiderPassword,
-      mustChangePassword: false,
+  });
+
+  let haider;
+  if (haiderUser) {
+    haider = await prisma.user.update({
+      where: { id: haiderUser.id },
+      data: {
+        name: "Julfiqur Haider",
+        email: "haiderjulfiqur400@gmail.com",
+        username: "haider",
+        role: "ADMIN",
+        passwordHash: haiderPassword,
+        mustChangePassword: false,
+      },
+    });
+  } else {
+    haider = await prisma.user.create({
+      data: {
+        name: "Julfiqur Haider",
+        email: "haiderjulfiqur400@gmail.com",
+        username: "haider",
+        role: "ADMIN",
+        passwordHash: haiderPassword,
+        mustChangePassword: false,
+      },
+    });
+  }
+
+  // Also update Member profile email if exists
+  await prisma.member.updateMany({
+    where: {
+      OR: [
+        { memberCode: "IGBS02" },
+        { email: "haider74hamburg@hotmail.com" },
+      ],
+    },
+    data: {
+      email: "haiderjulfiqur400@gmail.com",
     },
   });
 
